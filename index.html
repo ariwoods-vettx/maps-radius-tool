@@ -368,6 +368,13 @@
             font-size: 0.875rem;
         }
 
+        /* Utility classes for form layout */
+        .form-group--address { flex: 2; }
+        .form-group--unit { flex: 0.5; min-width: 120px; }
+        .form-group--color { flex: 0.5; min-width: 100px; }
+        .form-group--radius { flex: 1; }
+        .form-row--spacing { margin-top: 15px; }
+
         @media (max-width: 768px) {
             .container {
                 height: auto;
@@ -414,18 +421,18 @@
         </div>
         <div class="controls">
             <div class="form-row">
-                <div class="form-group" style="flex: 2;">
+                <div class="form-group form-group--address">
                     <label for="address">Address</label>
                     <input type="text" id="address" placeholder="Enter an address..." autocomplete="off">
                 </div>
-                <div class="form-group" style="flex: 0.5; min-width: 120px;">
+                <div class="form-group form-group--unit">
                     <label for="unit">Unit</label>
                     <select id="unit">
                         <option value="miles">Miles</option>
                         <option value="km">Kilometers</option>
                     </select>
                 </div>
-                <div class="form-group" style="flex: 0.5; min-width: 100px;">
+                <div class="form-group form-group--color">
                     <label for="color">Circle Color</label>
                     <div class="color-picker">
                         <input type="color" id="color" value="#0f172a">
@@ -433,8 +440,8 @@
                 </div>
                 <button class="btn" id="searchBtn">Draw Circle</button>
             </div>
-            <div class="form-row" style="margin-top: 15px;">
-                <div class="form-group" style="flex: 1;">
+            <div class="form-row form-row--spacing">
+                <div class="form-group form-group--radius">
                     <label>Radius</label>
                     <div class="radius-control">
                         <div class="radius-slider">
@@ -466,6 +473,11 @@
         const METERS_PER_MILE = 1609.34;
         const METERS_PER_KM = 1000;
         const LISTINGS_PER_MILLION = 500;
+        const DEBOUNCE_DELAY = 300;
+        const ANIMATION_DURATION = 800;
+
+        // Cached DOM elements (initialized in initMap)
+        const elements = {};
 
         // Global state
         let map;
@@ -475,16 +487,26 @@
         let censusData = null;
         let populationUpdateTimeout = null;
 
+        // Utility functions
+        const formatNumber = (num) => num.toLocaleString();
+
+        function getRadiusInMeters(radiusValue, unit) {
+            return unit === 'miles' ? radiusValue * METERS_PER_MILE : radiusValue * METERS_PER_KM;
+        }
+
+        function getRadiusFromMeters(meters, unit) {
+            return unit === 'miles' ? meters / METERS_PER_MILE : meters / METERS_PER_KM;
+        }
+
         // Animated counter for listings
         function animateCounterListings(element, target, duration = 1000) {
-            const start = 0;
             const startTime = performance.now();
 
             function update(currentTime) {
                 const elapsed = currentTime - startTime;
                 const progress = Math.min(elapsed / duration, 1);
                 const easeOut = 1 - Math.pow(1 - progress, 3);
-                const current = Math.floor(start + (target - start) * easeOut);
+                const current = Math.floor(target * easeOut);
                 element.textContent = '~' + current.toLocaleString() + ' listings';
 
                 if (progress < 1) {
@@ -516,14 +538,14 @@
         }
 
         function updateUrl() {
-            const address = document.getElementById('address').value.trim();
+            const address = elements.address.value.trim();
             if (!address) return;
 
             const params = new URLSearchParams();
             params.set('address', address);
-            params.set('radius', document.getElementById('radiusInput').value);
-            params.set('unit', document.getElementById('unit').value);
-            params.set('color', document.getElementById('color').value);
+            params.set('radius', elements.radiusInput.value);
+            params.set('unit', elements.unit.value);
+            params.set('color', elements.color.value);
 
             const newUrl = `${window.location.pathname}?${params.toString()}`;
             window.history.replaceState({}, '', newUrl);
@@ -533,28 +555,42 @@
             const params = getUrlParams();
 
             if (params.radius) {
-                document.getElementById('radiusInput').value = params.radius;
-                document.getElementById('radiusSlider').value = Math.min(params.radius, 500);
+                elements.radiusInput.value = params.radius;
+                elements.radiusSlider.value = Math.min(params.radius, 500);
             }
             if (params.unit) {
-                document.getElementById('unit').value = params.unit;
-                document.getElementById('unitDisplay').textContent = params.unit;
+                elements.unit.value = params.unit;
+                elements.unitDisplay.textContent = params.unit;
             }
             if (params.color) {
-                document.getElementById('color').value = params.color;
+                elements.color.value = params.color;
             }
             if (params.address) {
-                document.getElementById('address').value = params.address;
-                // Auto-search after map loads
+                elements.address.value = params.address;
                 setTimeout(() => searchAddress(), 500);
             }
         }
 
+        function cacheElements() {
+            elements.address = document.getElementById('address');
+            elements.radiusSlider = document.getElementById('radiusSlider');
+            elements.radiusInput = document.getElementById('radiusInput');
+            elements.unit = document.getElementById('unit');
+            elements.unitDisplay = document.getElementById('unitDisplay');
+            elements.color = document.getElementById('color');
+            elements.searchBtn = document.getElementById('searchBtn');
+            elements.error = document.getElementById('error');
+            elements.populationPanel = document.getElementById('populationPanel');
+            elements.populationContent = document.getElementById('populationContent');
+        }
+
         function initMap() {
+            cacheElements();
+
             map = new google.maps.Map(document.getElementById('map'), {
                 center: { lat: 39.8283, lng: -98.5795 },
                 zoom: 4,
-                mapId: 'VETTX_MAP', // Required for AdvancedMarkerElement
+                mapId: 'VETTX_MAP',
                 styles: [
                     {
                         featureType: 'poi',
@@ -566,45 +602,42 @@
 
             geocoder = new window.GeocoderClass();
 
-            document.getElementById('searchBtn').addEventListener('click', searchAddress);
-            document.getElementById('address').addEventListener('keypress', function(e) {
+            // Event listeners
+            elements.searchBtn.addEventListener('click', searchAddress);
+            elements.address.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchAddress();
             });
+            elements.radiusSlider.addEventListener('input', handleRadiusChange);
+            elements.radiusInput.addEventListener('input', handleRadiusChange);
+            elements.unit.addEventListener('change', handleUnitChange);
+            elements.color.addEventListener('input', handleColorChange);
 
-            document.getElementById('radiusSlider').addEventListener('input', updateRadiusFromSlider);
-            document.getElementById('radiusInput').addEventListener('input', updateRadiusFromInput);
-            document.getElementById('unit').addEventListener('change', updateUnit);
-            document.getElementById('color').addEventListener('input', updateCircleColor);
-
-            // Using the imported Autocomplete class
+            // Autocomplete
             const autocomplete = new window.AutocompleteClass(
-                document.getElementById('address'),
+                elements.address,
                 { types: ['geocode'] }
             );
 
-            autocomplete.addListener('place_changed', function() {
+            autocomplete.addListener('place_changed', () => {
                 const place = autocomplete.getPlace();
                 if (place.geometry) placeMarkerAndCircle(place.geometry.location);
             });
 
-            // Load settings from URL if present
             loadFromUrl();
         }
 
         function searchAddress() {
-            const address = document.getElementById('address').value.trim();
+            const address = elements.address.value.trim();
             if (!address) {
                 showError('Please enter an address');
                 return;
             }
 
             hideError();
-            document.getElementById('searchBtn').disabled = true;
-            document.getElementById('searchBtn').textContent = 'Searching...';
+            setSearchButtonState(true);
 
-            geocoder.geocode({ address: address }, function(results, status) {
-                document.getElementById('searchBtn').disabled = false;
-                document.getElementById('searchBtn').textContent = 'Draw Circle';
+            geocoder.geocode({ address }, (results, status) => {
+                setSearchButtonState(false);
 
                 if (status === 'OK' && results[0]) {
                     placeMarkerAndCircle(results[0].geometry.location);
@@ -614,21 +647,25 @@
             });
         }
 
+        function setSearchButtonState(isSearching) {
+            elements.searchBtn.disabled = isSearching;
+            elements.searchBtn.textContent = isSearching ? 'Searching...' : 'Draw Circle';
+        }
+
         function placeMarkerAndCircle(location) {
             if (marker) marker.map = null;
             if (circle) circle.setMap(null);
             censusData = null;
 
-            // Using AdvancedMarkerElement (modern API)
             marker = new window.AdvancedMarkerElement({
                 position: location,
                 map: map
             });
 
-            const radiusValue = parseFloat(document.getElementById('radiusInput').value) || 5;
-            const unit = document.getElementById('unit').value;
-            const radiusInMeters = unit === 'miles' ? radiusValue * METERS_PER_MILE : radiusValue * METERS_PER_KM;
-            const color = document.getElementById('color').value;
+            const radiusValue = parseFloat(elements.radiusInput.value) || 5;
+            const unit = elements.unit.value;
+            const radiusInMeters = getRadiusInMeters(radiusValue, unit);
+            const color = elements.color.value;
 
             circle = new google.maps.Circle({
                 strokeColor: color,
@@ -647,22 +684,18 @@
             fetchPopulationData(location.lat(), location.lng());
             updateUrl();
 
-            circle.addListener('radius_changed', function() {
-                const newRadius = circle.getRadius();
-                const unit = document.getElementById('unit').value;
-                const displayRadius = unit === 'miles' ? newRadius / METERS_PER_MILE : newRadius / METERS_PER_KM;
+            circle.addListener('radius_changed', () => {
+                const displayRadius = getRadiusFromMeters(circle.getRadius(), elements.unit.value);
                 syncRadiusControls(displayRadius);
                 debouncedUpdatePopulation();
                 updateUrl();
             });
 
-            // Move marker as circle is dragged (visual feedback only)
-            circle.addListener('center_changed', function() {
+            circle.addListener('center_changed', () => {
                 marker.position = circle.getCenter();
             });
 
-            // Fetch population only when drag ends
-            circle.addListener('dragend', function() {
+            circle.addListener('dragend', () => {
                 const center = circle.getCenter();
                 censusData = null;
                 fetchPopulationData(center.lat(), center.lng());
@@ -670,69 +703,60 @@
         }
 
         function syncRadiusControls(value) {
-            const slider = document.getElementById('radiusSlider');
-            const input = document.getElementById('radiusInput');
-            slider.value = Math.min(value, parseFloat(slider.max));
-            input.value = parseFloat(value).toFixed(1);
+            elements.radiusSlider.value = Math.min(value, parseFloat(elements.radiusSlider.max));
+            elements.radiusInput.value = parseFloat(value).toFixed(1);
         }
 
-        function updateRadiusFromSlider() {
-            const radiusValue = parseFloat(document.getElementById('radiusSlider').value);
-            document.getElementById('radiusInput').value = radiusValue;
-            updateCircle(radiusValue);
-            debouncedUpdatePopulation();
-            updateUrl();
-        }
+        function handleRadiusChange(e) {
+            const isSlider = e.target.id === 'radiusSlider';
+            const radiusValue = parseFloat(e.target.value) || 0.1;
 
-        function updateRadiusFromInput() {
-            const radiusValue = parseFloat(document.getElementById('radiusInput').value) || 0.1;
-            const slider = document.getElementById('radiusSlider');
-            slider.value = Math.min(radiusValue, parseFloat(slider.max));
-            updateCircle(radiusValue);
-            debouncedUpdatePopulation();
-            updateUrl();
-        }
-
-        function updateUnit() {
-            const unit = document.getElementById('unit').value;
-            document.getElementById('unitDisplay').textContent = unit;
-            const radiusValue = parseFloat(document.getElementById('radiusInput').value) || 5;
-            updateCircle(radiusValue);
-            debouncedUpdatePopulation();
-            updateUrl();
-        }
-
-        function updateCircle(radiusValue) {
-            if (circle) {
-                const unit = document.getElementById('unit').value;
-                const radiusInMeters = unit === 'miles' ? radiusValue * 1609.34 : radiusValue * 1000;
-                circle.setRadius(radiusInMeters);
-                map.fitBounds(circle.getBounds());
+            if (isSlider) {
+                elements.radiusInput.value = radiusValue;
+            } else {
+                elements.radiusSlider.value = Math.min(radiusValue, parseFloat(elements.radiusSlider.max));
             }
+
+            updateCircle(radiusValue);
+            debouncedUpdatePopulation();
+            updateUrl();
         }
 
-        function updateCircleColor() {
-            const color = document.getElementById('color').value;
+        function handleUnitChange() {
+            elements.unitDisplay.textContent = elements.unit.value;
+            const radiusValue = parseFloat(elements.radiusInput.value) || 5;
+            updateCircle(radiusValue);
+            debouncedUpdatePopulation();
+            updateUrl();
+        }
+
+        function handleColorChange() {
+            const color = elements.color.value;
             if (circle) {
                 circle.setOptions({ strokeColor: color, fillColor: color });
             }
             updateUrl();
         }
 
+        function updateCircle(radiusValue) {
+            if (!circle) return;
+            const radiusInMeters = getRadiusInMeters(radiusValue, elements.unit.value);
+            circle.setRadius(radiusInMeters);
+            map.fitBounds(circle.getBounds());
+        }
+
         function debouncedUpdatePopulation() {
             if (populationUpdateTimeout) clearTimeout(populationUpdateTimeout);
             populationUpdateTimeout = setTimeout(() => {
                 if (censusData) updatePopulationDisplay();
-            }, 300);
+            }, DEBOUNCE_DELAY);
         }
 
         // CORS proxy with fallbacks
         async function fetchWithProxy(url) {
             const proxies = [
-                // Primary proxies
                 (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
                 (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                // Fallback proxies
                 (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
                 (u) => `https://proxy.cors.sh/${u}`,
                 (u) => `https://thingproxy.freeboard.io/fetch/${u}`
@@ -742,34 +766,43 @@
                 try {
                     const proxyUrl = proxy(url);
                     const response = await fetch(proxyUrl, {
-                        headers: {
-                            'Accept': 'application/json'
-                        }
+                        headers: { 'Accept': 'application/json' }
                     });
                     if (response.ok) {
                         const text = await response.text();
                         try {
                             return JSON.parse(text);
-                        } catch (parseError) {
+                        } catch {
+                            console.warn('Proxy returned invalid JSON, trying next');
                             continue;
                         }
                     }
                 } catch (e) {
-                    // Try next proxy
+                    console.warn('Proxy failed:', e.message);
                 }
             }
             throw new Error('All proxies failed. Try disabling Enhanced Tracking Protection or ad blockers.');
         }
 
-        async function fetchPopulationData(lat, lng) {
-            const panel = document.getElementById('populationPanel');
-            const content = document.getElementById('populationContent');
+        function estimateLandArea(population) {
+            let landAreaSqMiles;
+            if (population > 1000000) {
+                landAreaSqMiles = population / 2500; // Dense urban
+            } else if (population > 100000) {
+                landAreaSqMiles = population / 500; // Suburban
+            } else if (population > 10000) {
+                landAreaSqMiles = population / 50; // Mixed
+            } else {
+                landAreaSqMiles = population / 10; // Rural
+            }
+            return Math.max(10, Math.min(10000, landAreaSqMiles));
+        }
 
-            panel.classList.add('show');
-            content.innerHTML = '<div class="population-loading"><div class="spinner"></div><span>Calculating listings...</span></div>';
+        async function fetchPopulationData(lat, lng) {
+            elements.populationPanel.classList.add('show');
+            elements.populationContent.innerHTML = '<div class="population-loading"><div class="spinner"></div><span>Calculating listings...</span></div>';
 
             try {
-                // Get county info from FCC Area API via CORS proxy
                 const fccUrl = `https://geo.fcc.gov/api/census/block/find?latitude=${lat}&longitude=${lng}&format=json`;
                 const geoData = await fetchWithProxy(fccUrl);
 
@@ -777,11 +810,10 @@
                     throw new Error('Population estimates are only available for US addresses.');
                 }
 
-                const countyFips = geoData.County.FIPS.substring(2); // Last 3 digits
+                const countyFips = geoData.County.FIPS.substring(2);
                 const stateFips = geoData.State.FIPS;
                 const countyName = geoData.County.name;
 
-                // Get county population (2020 Census) via CORS proxy
                 const censusUrl = `https://api.census.gov/data/2020/dec/pl?get=P1_001N&for=county:${countyFips}&in=state:${stateFips}`;
                 const popData = await fetchWithProxy(censusUrl);
 
@@ -790,57 +822,34 @@
                 }
 
                 const countyPopulation = parseInt(popData[1][0]);
-
-                // Get county land area - use a reasonable estimate based on county population
-                // Average US county is ~1,000 sq mi, but varies greatly
-                // We'll estimate based on population: higher pop = likely smaller/denser county
-                let landAreaSqMiles;
-                if (countyPopulation > 1000000) {
-                    landAreaSqMiles = countyPopulation / 2500; // Dense urban
-                } else if (countyPopulation > 100000) {
-                    landAreaSqMiles = countyPopulation / 500; // Suburban
-                } else if (countyPopulation > 10000) {
-                    landAreaSqMiles = countyPopulation / 50; // Mixed
-                } else {
-                    landAreaSqMiles = countyPopulation / 10; // Rural
-                }
-
-                // Clamp to reasonable county sizes (10 - 10000 sq mi)
-                landAreaSqMiles = Math.max(10, Math.min(10000, landAreaSqMiles));
-
-                const populationDensity = countyPopulation / landAreaSqMiles;
+                const landAreaSqMiles = estimateLandArea(countyPopulation);
 
                 censusData = {
                     countyName,
                     countyPopulation,
                     landAreaSqMiles,
-                    populationDensity
+                    populationDensity: countyPopulation / landAreaSqMiles
                 };
 
                 updatePopulationDisplay();
 
             } catch (error) {
                 console.error('Census API error:', error);
-                content.innerHTML = `<div class="population-error">${error.message || 'Unable to fetch population data. This feature is only available for US locations.'}</div>`;
+                elements.populationContent.innerHTML = `<div class="population-error">${error.message || 'Unable to fetch population data. This feature is only available for US locations.'}</div>`;
             }
         }
 
         function updatePopulationDisplay() {
             if (!censusData || !circle) return;
 
-            const content = document.getElementById('populationContent');
-            const radiusMeters = circle.getRadius();
-            const radiusMiles = radiusMeters / METERS_PER_MILE;
+            const radiusMiles = circle.getRadius() / METERS_PER_MILE;
             const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
             const estimatedPopulation = Math.round(censusData.populationDensity * circleAreaSqMiles);
             const privatePartyListings = Math.round((estimatedPopulation / 1000000) * LISTINGS_PER_MILLION);
-            const formatNumber = (num) => num.toLocaleString();
             const emoji = getListingsEmoji(privatePartyListings);
             const center = circle.getCenter();
-            const lat = center.lat().toFixed(6);
-            const lng = center.lng().toFixed(6);
 
-            content.innerHTML = `
+            elements.populationContent.innerHTML = `
                 <h2>Estimated Private Party Listings</h2>
                 <div class="population-value">
                     <span class="population-emoji">${emoji}</span>
@@ -856,7 +865,7 @@
                         Circle Area
                     </div>
                     <div class="population-detail">
-                        <strong>${lat}, ${lng}</strong>
+                        <strong>${center.lat().toFixed(6)}, ${center.lng().toFixed(6)}</strong>
                         Center Coordinates
                     </div>
                     <div class="population-detail">
@@ -871,19 +880,17 @@
                 <div class="population-note">* Estimate based on ${censusData.countyName} County average density (2020 Census)</div>
             `;
 
-            // Animate the counter for listings
             const counterEl = document.getElementById('listingsCounter');
-            animateCounterListings(counterEl, privatePartyListings, 800);
+            animateCounterListings(counterEl, privatePartyListings, ANIMATION_DURATION);
         }
 
         function showError(message) {
-            const errorEl = document.getElementById('error');
-            errorEl.textContent = message;
-            errorEl.classList.add('show');
+            elements.error.textContent = message;
+            elements.error.classList.add('show');
         }
 
         function hideError() {
-            document.getElementById('error').classList.remove('show');
+            elements.error.classList.remove('show');
         }
     </script>
     <script>
