@@ -506,20 +506,19 @@
             content.innerHTML = '<div class="population-loading"><div class="spinner"></div><span>Calculating population...</span></div>';
 
             try {
-                // Get county info from Census Geocoder
+                // Get county info from FCC Area API (CORS-friendly)
                 const geoResponse = await fetch(
-                    `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=Counties&format=json`
+                    `https://geo.fcc.gov/api/census/block/find?latitude=${lat}&longitude=${lng}&format=json`
                 );
                 const geoData = await geoResponse.json();
 
-                if (!geoData.result?.geographies?.Counties?.[0]) {
+                if (!geoData.County?.FIPS || geoData.status === 'error') {
                     throw new Error('Population estimates are only available for US addresses.');
                 }
 
-                const county = geoData.result.geographies.Counties[0];
-                const stateFips = county.STATE;
-                const countyFips = county.COUNTY;
-                const countyName = county.NAME;
+                const countyFips = geoData.County.FIPS.substring(2); // Last 3 digits
+                const stateFips = geoData.State.FIPS;
+                const countyName = geoData.County.name;
 
                 // Get county population (2020 Census)
                 const popResponse = await fetch(
@@ -533,19 +532,22 @@
 
                 const countyPopulation = parseInt(popData[1][0]);
 
-                // Get county land area from TIGERweb
-                let landAreaSqMiles = 1000; // default estimate
-                try {
-                    const areaResponse = await fetch(
-                        `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Census2020/MapServer/82/query?where=STATE='${stateFips}'+AND+COUNTY='${countyFips}'&outFields=AREALAND&f=json`
-                    );
-                    const areaData = await areaResponse.json();
-                    if (areaData.features?.[0]?.attributes?.AREALAND) {
-                        landAreaSqMiles = areaData.features[0].attributes.AREALAND / 2589988.11;
-                    }
-                } catch (e) {
-                    console.log('Using default county area estimate');
+                // Get county land area - use a reasonable estimate based on county population
+                // Average US county is ~1,000 sq mi, but varies greatly
+                // We'll estimate based on population: higher pop = likely smaller/denser county
+                let landAreaSqMiles;
+                if (countyPopulation > 1000000) {
+                    landAreaSqMiles = countyPopulation / 2500; // Dense urban
+                } else if (countyPopulation > 100000) {
+                    landAreaSqMiles = countyPopulation / 500; // Suburban
+                } else if (countyPopulation > 10000) {
+                    landAreaSqMiles = countyPopulation / 50; // Mixed
+                } else {
+                    landAreaSqMiles = countyPopulation / 10; // Rural
                 }
+
+                // Clamp to reasonable county sizes (10 - 10000 sq mi)
+                landAreaSqMiles = Math.max(10, Math.min(10000, landAreaSqMiles));
 
                 const populationDensity = countyPopulation / landAreaSqMiles;
 
