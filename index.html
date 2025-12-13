@@ -990,19 +990,21 @@
 
                 // Header background
                 pdf.setFillColor(15, 23, 42); // vettx-navy
-                pdf.rect(0, 0, pageWidth, 70, 'F');
+                pdf.rect(0, 0, pageWidth, 60, 'F');
 
-                // VETTX Logo text
+                // VETTX Logo text - fixed spacing
                 pdf.setTextColor(255, 255, 255);
-                pdf.setFontSize(28);
+                pdf.setFontSize(24);
                 pdf.setFont('helvetica', 'bold');
-                pdf.text('VETT', 40, 45);
+                pdf.text('VETT', 40, 38);
+                const vettWidth = pdf.getTextWidth('VETT');
                 pdf.setTextColor(59, 130, 246); // accent blue
-                pdf.text('X', 100, 45);
+                pdf.text('X', 40 + vettWidth, 38);
+                const xWidth = pdf.getTextWidth('X');
                 pdf.setTextColor(255, 255, 255);
-                pdf.setFontSize(14);
+                pdf.setFontSize(12);
                 pdf.setFont('helvetica', 'normal');
-                pdf.text('Market Radius Report', 130, 45);
+                pdf.text('Market Radius Report', 40 + vettWidth + xWidth + 15, 38);
 
                 // Date
                 pdf.setFontSize(10);
@@ -1010,78 +1012,74 @@
                 const date = new Date().toLocaleDateString('en-US', {
                     year: 'numeric', month: 'long', day: 'numeric'
                 });
-                pdf.text(date, pageWidth - 40, 45, { align: 'right' });
+                pdf.text(date, pageWidth - 40, 38, { align: 'right' });
 
                 // Location title
                 pdf.setTextColor(15, 23, 42);
-                pdf.setFontSize(18);
+                pdf.setFontSize(16);
                 pdf.setFont('helvetica', 'bold');
                 const address = elements.address.value || 'Selected Location';
-                pdf.text(address, 40, 100);
+                pdf.text(address, 40, 85);
 
                 // Subtitle
                 pdf.setFontSize(11);
                 pdf.setFont('helvetica', 'normal');
                 pdf.setTextColor(100, 116, 139);
-                pdf.text(`${radiusValue} ${unit} radius | ${censusData.countyName} County`, 40, 118);
+                pdf.text(`${radiusValue} ${unit} radius | ${censusData.countyName} County`, 40, 100);
 
-                // Map image - preserve aspect ratio
+                // Map image - large, full width at top
                 const mapImgData = mapCanvas.toDataURL('image/png');
-                const maxMapWidth = 420;
-                const maxMapHeight = 300;
                 const canvasRatio = mapCanvas.width / mapCanvas.height;
-                let mapWidth, mapHeight;
+                const mapWidth = pageWidth - 80; // 40px margin each side
+                const mapHeight = mapWidth / canvasRatio;
+                const maxMapHeight = 280;
+                const finalMapHeight = Math.min(mapHeight, maxMapHeight);
+                const finalMapWidth = finalMapHeight === maxMapHeight ? maxMapHeight * canvasRatio : mapWidth;
 
-                if (canvasRatio > maxMapWidth / maxMapHeight) {
-                    // Canvas is wider - fit to width
-                    mapWidth = maxMapWidth;
-                    mapHeight = maxMapWidth / canvasRatio;
-                } else {
-                    // Canvas is taller - fit to height
-                    mapHeight = maxMapHeight;
-                    mapWidth = maxMapHeight * canvasRatio;
-                }
+                pdf.addImage(mapImgData, 'PNG', 40, 115, finalMapWidth, finalMapHeight);
 
-                pdf.addImage(mapImgData, 'PNG', 40, 135, mapWidth, mapHeight);
+                // Stats section below map
+                const statsY = 115 + finalMapHeight + 20;
 
-                // Stats panel
-                const statsX = 480;
-                let statsY = 135;
-
-                // Main stat - Listings
+                // Main stat - Listings (left side, prominent)
                 pdf.setFillColor(240, 253, 244); // light green bg
-                pdf.roundedRect(statsX, statsY, 280, 80, 8, 8, 'F');
-                pdf.setFontSize(12);
+                pdf.roundedRect(40, statsY, 250, 70, 8, 8, 'F');
+                pdf.setFontSize(10);
                 pdf.setTextColor(100, 116, 139);
-                pdf.text('ESTIMATED PRIVATE PARTY LISTINGS', statsX + 15, statsY + 25);
-                pdf.setFontSize(36);
+                pdf.text('ESTIMATED PRIVATE PARTY LISTINGS', 55, statsY + 22);
+                pdf.setFontSize(32);
                 pdf.setFont('helvetica', 'bold');
                 pdf.setTextColor(5, 150, 105); // green
-                pdf.text(`~${formatNumber(privatePartyListings)}`, statsX + 15, statsY + 60);
+                pdf.text(`~${formatNumber(privatePartyListings)}`, 55, statsY + 52);
 
-                statsY += 95;
-
-                // Stats grid
+                // Stats grid (right side, 2 columns)
                 const stats = [
                     { label: 'Est. Population', value: `~${formatNumber(estimatedPopulation)}` },
                     { label: 'Circle Area', value: `${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi` },
-                    { label: 'Population Density', value: `${formatNumber(Math.round(censusData.populationDensity))}/sq mi` },
+                    { label: 'County Density', value: `${formatNumber(Math.round(censusData.populationDensity))}/sq mi` },
                     { label: 'County Population', value: formatNumber(censusData.countyPopulation) },
-                    { label: 'Center Coordinates', value: `${center.lat().toFixed(4)}, ${center.lng().toFixed(4)}` }
                 ];
+
+                const col1X = 310;
+                const col2X = 500;
+                const statBoxWidth = 170;
 
                 pdf.setFont('helvetica', 'normal');
                 stats.forEach((stat, i) => {
-                    const y = statsY + (i * 38);
+                    const col = i % 2;
+                    const row = Math.floor(i / 2);
+                    const x = col === 0 ? col1X : col2X;
+                    const y = statsY + (row * 38);
+
                     pdf.setFillColor(248, 250, 252);
-                    pdf.roundedRect(statsX, y, 280, 32, 4, 4, 'F');
-                    pdf.setFontSize(9);
+                    pdf.roundedRect(x, y, statBoxWidth, 32, 4, 4, 'F');
+                    pdf.setFontSize(8);
                     pdf.setTextColor(100, 116, 139);
-                    pdf.text(stat.label.toUpperCase(), statsX + 10, y + 13);
-                    pdf.setFontSize(14);
+                    pdf.text(stat.label.toUpperCase(), x + 10, y + 12);
+                    pdf.setFontSize(13);
                     pdf.setFont('helvetica', 'bold');
                     pdf.setTextColor(15, 23, 42);
-                    pdf.text(stat.value, statsX + 10, y + 26);
+                    pdf.text(stat.value, x + 10, y + 25);
                     pdf.setFont('helvetica', 'normal');
                 });
 
