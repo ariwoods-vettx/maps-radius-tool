@@ -498,6 +498,9 @@
             }, 300);
         }
 
+        // CORS proxy for government APIs that don't support CORS
+        const corsProxy = 'https://corsproxy.io/?';
+
         async function fetchPopulationData(lat, lng) {
             const panel = document.getElementById('populationPanel');
             const content = document.getElementById('populationContent');
@@ -506,10 +509,9 @@
             content.innerHTML = '<div class="population-loading"><div class="spinner"></div><span>Calculating population...</span></div>';
 
             try {
-                // Get county info from FCC Area API (CORS-friendly)
-                const geoResponse = await fetch(
-                    `https://geo.fcc.gov/api/census/block/find?latitude=${lat}&longitude=${lng}&format=json`
-                );
+                // Get county info from FCC Area API via CORS proxy
+                const fccUrl = `https://geo.fcc.gov/api/census/block/find?latitude=${lat}&longitude=${lng}&format=json`;
+                const geoResponse = await fetch(corsProxy + encodeURIComponent(fccUrl));
                 const geoData = await geoResponse.json();
 
                 if (!geoData.County?.FIPS || geoData.status === 'error') {
@@ -520,10 +522,9 @@
                 const stateFips = geoData.State.FIPS;
                 const countyName = geoData.County.name;
 
-                // Get county population (2020 Census)
-                const popResponse = await fetch(
-                    `https://api.census.gov/data/2020/dec/pl?get=P1_001N&for=county:${countyFips}&in=state:${stateFips}`
-                );
+                // Get county population (2020 Census) via CORS proxy
+                const censusUrl = `https://api.census.gov/data/2020/dec/pl?get=P1_001N&for=county:${countyFips}&in=state:${stateFips}`;
+                const popResponse = await fetch(corsProxy + encodeURIComponent(censusUrl));
                 const popData = await popResponse.json();
 
                 if (!popData || popData.length < 2) {
