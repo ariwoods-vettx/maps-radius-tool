@@ -498,8 +498,26 @@
             }, 300);
         }
 
-        // CORS proxy for government APIs that don't support CORS
-        const corsProxy = 'https://corsproxy.io/?';
+        // CORS proxy with fallbacks
+        async function fetchWithProxy(url) {
+            const proxies = [
+                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+            ];
+
+            for (const proxy of proxies) {
+                try {
+                    const response = await fetch(proxy(url));
+                    if (response.ok) {
+                        return await response.json();
+                    }
+                } catch (e) {
+                    console.log('Proxy failed, trying next...');
+                }
+            }
+            throw new Error('All proxies failed');
+        }
 
         async function fetchPopulationData(lat, lng) {
             const panel = document.getElementById('populationPanel');
@@ -511,8 +529,7 @@
             try {
                 // Get county info from FCC Area API via CORS proxy
                 const fccUrl = `https://geo.fcc.gov/api/census/block/find?latitude=${lat}&longitude=${lng}&format=json`;
-                const geoResponse = await fetch(corsProxy + encodeURIComponent(fccUrl));
-                const geoData = await geoResponse.json();
+                const geoData = await fetchWithProxy(fccUrl);
 
                 if (!geoData.County?.FIPS || geoData.status === 'error') {
                     throw new Error('Population estimates are only available for US addresses.');
@@ -524,8 +541,7 @@
 
                 // Get county population (2020 Census) via CORS proxy
                 const censusUrl = `https://api.census.gov/data/2020/dec/pl?get=P1_001N&for=county:${countyFips}&in=state:${stateFips}`;
-                const popResponse = await fetch(corsProxy + encodeURIComponent(censusUrl));
-                const popData = await popResponse.json();
+                const popData = await fetchWithProxy(censusUrl);
 
                 if (!popData || popData.length < 2) {
                     throw new Error('Could not retrieve population data');
