@@ -360,6 +360,11 @@
         }
 
         @media (max-width: 768px) {
+            .container {
+                height: auto;
+                min-height: 100vh;
+            }
+
             .form-group {
                 min-width: 100%;
             }
@@ -372,6 +377,22 @@
 
             .controls {
                 padding: 15px;
+            }
+
+            #map {
+                min-height: 300px;
+            }
+
+            .population-panel {
+                flex-shrink: 0;
+            }
+
+            .population-details {
+                gap: 16px;
+            }
+
+            .population-detail {
+                min-width: 45%;
             }
         }
     </style>
