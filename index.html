@@ -9,6 +9,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- PDF Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
             --vettx-navy: #0f172a;
@@ -375,6 +378,31 @@
         .form-group--radius { flex: 1; }
         .form-row--spacing { margin-top: 15px; }
 
+        /* Export button */
+        .btn--export {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            display: none;
+        }
+
+        .btn--export.show {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn--export:hover {
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+
+        .btn--export:disabled {
+            background: #94a3b8;
+        }
+
+        .btn--export svg {
+            width: 16px;
+            height: 16px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 height: auto;
@@ -439,6 +467,12 @@
                     </div>
                 </div>
                 <button class="btn" id="searchBtn">Draw Circle</button>
+                <button class="btn btn--export" id="exportBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export PDF
+                </button>
             </div>
             <div class="form-row form-row--spacing">
                 <div class="form-group form-group--radius">
@@ -475,6 +509,7 @@
         const LISTINGS_PER_MILLION = 500;
         const DEBOUNCE_DELAY = 300;
         const ANIMATION_DURATION = 800;
+        const CIRCLE_ANIMATION_DURATION = 600;
 
         // Cached DOM elements (initialized in initMap)
         const elements = {};
@@ -496,6 +531,30 @@
 
         function getRadiusFromMeters(meters, unit) {
             return unit === 'miles' ? meters / METERS_PER_MILE : meters / METERS_PER_KM;
+        }
+
+        // Animate circle radius expansion
+        function animateCircleRadius(startRadius, endRadius, duration, onComplete) {
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic for smooth deceleration
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const currentRadius = startRadius + (endRadius - startRadius) * easeOut;
+
+                if (circle) {
+                    circle.setRadius(currentRadius);
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else if (onComplete) {
+                    onComplete();
+                }
+            }
+            requestAnimationFrame(update);
         }
 
         // Animated counter for listings
@@ -582,6 +641,7 @@
             elements.error = document.getElementById('error');
             elements.populationPanel = document.getElementById('populationPanel');
             elements.populationContent = document.getElementById('populationContent');
+            elements.exportBtn = document.getElementById('exportBtn');
         }
 
         function initMap() {
@@ -611,6 +671,7 @@
             elements.radiusInput.addEventListener('input', handleRadiusChange);
             elements.unit.addEventListener('change', handleUnitChange);
             elements.color.addEventListener('input', handleColorChange);
+            elements.exportBtn.addEventListener('click', exportToPDF);
 
             // Autocomplete
             const autocomplete = new window.AutocompleteClass(
@@ -656,6 +717,7 @@
             if (marker) marker.map = null;
             if (circle) circle.setMap(null);
             censusData = null;
+            elements.exportBtn.classList.remove('show');
 
             marker = new window.AdvancedMarkerElement({
                 position: location,
@@ -664,9 +726,10 @@
 
             const radiusValue = parseFloat(elements.radiusInput.value) || 5;
             const unit = elements.unit.value;
-            const radiusInMeters = getRadiusInMeters(radiusValue, unit);
+            const targetRadius = getRadiusInMeters(radiusValue, unit);
             const color = elements.color.value;
 
+            // Create circle with 0 radius for animation
             circle = new google.maps.Circle({
                 strokeColor: color,
                 strokeOpacity: 0.8,
@@ -675,12 +738,16 @@
                 fillOpacity: 0.2,
                 map: map,
                 center: location,
-                radius: radiusInMeters,
+                radius: 0,
                 editable: true,
                 draggable: true
             });
 
-            map.fitBounds(circle.getBounds());
+            // Animate circle expanding
+            animateCircleRadius(0, targetRadius, CIRCLE_ANIMATION_DURATION, () => {
+                map.fitBounds(circle.getBounds());
+            });
+
             fetchPopulationData(location.lat(), location.lng());
             updateUrl();
 
@@ -882,6 +949,146 @@
 
             const counterEl = document.getElementById('listingsCounter');
             animateCounterListings(counterEl, privatePartyListings, ANIMATION_DURATION);
+
+            // Show export button
+            elements.exportBtn.classList.add('show');
+        }
+
+        // PDF Export functionality
+        async function exportToPDF() {
+            if (!censusData || !circle) return;
+
+            const btn = elements.exportBtn;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;"></span> Generating...';
+
+            try {
+                const { jsPDF } = window.jspdf;
+
+                // Capture map
+                const mapElement = document.getElementById('map');
+                const mapCanvas = await html2canvas(mapElement, {
+                    useCORS: true,
+                    allowTaint: true,
+                    scale: 2
+                });
+
+                // Calculate dimensions
+                const radiusMiles = circle.getRadius() / METERS_PER_MILE;
+                const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
+                const estimatedPopulation = Math.round(censusData.populationDensity * circleAreaSqMiles);
+                const privatePartyListings = Math.round((estimatedPopulation / 1000000) * LISTINGS_PER_MILLION);
+                const center = circle.getCenter();
+                const radiusValue = parseFloat(elements.radiusInput.value);
+                const unit = elements.unit.value;
+
+                // Create PDF (landscape for better map display)
+                const pdf = new jsPDF('landscape', 'pt', 'letter');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+
+                // Header background
+                pdf.setFillColor(15, 23, 42); // vettx-navy
+                pdf.rect(0, 0, pageWidth, 70, 'F');
+
+                // VETTX Logo text
+                pdf.setTextColor(255, 255, 255);
+                pdf.setFontSize(28);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('VETT', 40, 45);
+                pdf.setTextColor(59, 130, 246); // accent blue
+                pdf.text('X', 100, 45);
+                pdf.setTextColor(255, 255, 255);
+                pdf.setFontSize(14);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text('Market Radius Report', 130, 45);
+
+                // Date
+                pdf.setFontSize(10);
+                pdf.setTextColor(180, 180, 180);
+                const date = new Date().toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'long', day: 'numeric'
+                });
+                pdf.text(date, pageWidth - 40, 45, { align: 'right' });
+
+                // Location title
+                pdf.setTextColor(15, 23, 42);
+                pdf.setFontSize(18);
+                pdf.setFont('helvetica', 'bold');
+                const address = elements.address.value || 'Selected Location';
+                pdf.text(address, 40, 100);
+
+                // Subtitle
+                pdf.setFontSize(11);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(100, 116, 139);
+                pdf.text(`${radiusValue} ${unit} radius | ${censusData.countyName} County`, 40, 118);
+
+                // Map image
+                const mapImgData = mapCanvas.toDataURL('image/png');
+                const mapWidth = 420;
+                const mapHeight = 300;
+                pdf.addImage(mapImgData, 'PNG', 40, 135, mapWidth, mapHeight);
+
+                // Stats panel
+                const statsX = 480;
+                let statsY = 135;
+
+                // Main stat - Listings
+                pdf.setFillColor(240, 253, 244); // light green bg
+                pdf.roundedRect(statsX, statsY, 280, 80, 8, 8, 'F');
+                pdf.setFontSize(12);
+                pdf.setTextColor(100, 116, 139);
+                pdf.text('ESTIMATED PRIVATE PARTY LISTINGS', statsX + 15, statsY + 25);
+                pdf.setFontSize(36);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(5, 150, 105); // green
+                pdf.text(`~${formatNumber(privatePartyListings)}`, statsX + 15, statsY + 60);
+
+                statsY += 95;
+
+                // Stats grid
+                const stats = [
+                    { label: 'Est. Population', value: `~${formatNumber(estimatedPopulation)}` },
+                    { label: 'Circle Area', value: `${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi` },
+                    { label: 'Population Density', value: `${formatNumber(Math.round(censusData.populationDensity))}/sq mi` },
+                    { label: 'County Population', value: formatNumber(censusData.countyPopulation) },
+                    { label: 'Center Coordinates', value: `${center.lat().toFixed(4)}, ${center.lng().toFixed(4)}` }
+                ];
+
+                pdf.setFont('helvetica', 'normal');
+                stats.forEach((stat, i) => {
+                    const y = statsY + (i * 38);
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.roundedRect(statsX, y, 280, 32, 4, 4, 'F');
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(100, 116, 139);
+                    pdf.text(stat.label.toUpperCase(), statsX + 10, y + 13);
+                    pdf.setFontSize(14);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(15, 23, 42);
+                    pdf.text(stat.value, statsX + 10, y + 26);
+                    pdf.setFont('helvetica', 'normal');
+                });
+
+                // Footer
+                pdf.setFontSize(9);
+                pdf.setTextColor(150, 150, 150);
+                pdf.text('* Population estimates based on 2020 Census data for ' + censusData.countyName + ' County', 40, pageHeight - 30);
+                pdf.text('Generated by VETTX Map Radius Tool | www.vettx.com', 40, pageHeight - 15);
+
+                // Save
+                const filename = `VETTX-Market-Report-${address.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 30)}.pdf`;
+                pdf.save(filename);
+
+            } catch (error) {
+                console.error('PDF export error:', error);
+                alert('Failed to generate PDF. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         }
 
         function showError(message) {
