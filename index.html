@@ -432,8 +432,13 @@
                 debouncedUpdatePopulation();
             });
 
+            // Move marker as circle is dragged (visual feedback only)
             circle.addListener('center_changed', function() {
                 marker.setPosition(circle.getCenter());
+            });
+
+            // Fetch population only when drag ends
+            circle.addListener('dragend', function() {
                 const center = circle.getCenter();
                 censusData = null;
                 fetchPopulationData(center.lat(), center.lng());
