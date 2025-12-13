@@ -783,6 +783,7 @@
             const radiusMiles = radiusMeters / 1609.34;
             const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
             const estimatedPopulation = Math.round(censusData.populationDensity * circleAreaSqMiles);
+            const privatePartyListings = Math.round((estimatedPopulation / 1000000) * 500);
             const formatNumber = (num) => num.toLocaleString();
             const emoji = getPopulationEmoji(estimatedPopulation);
 
@@ -792,6 +793,10 @@
                     <span id="popCounter">~0 people</span>
                 </div>
                 <div class="population-details">
+                    <div class="population-detail">
+                        <strong>${formatNumber(privatePartyListings)}</strong>
+                        Est. Private Party Listings
+                    </div>
                     <div class="population-detail">
                         <strong>${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi</strong>
                         Circle Area
