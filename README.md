@@ -7,9 +7,11 @@ A lightweight, interactive map tool for visualizing radius areas and estimating 
 ## Features
 
 - **Interactive Radius Circle** - Draw, drag, and resize a circle on the map
+- **Animated Circle Expansion** - Smooth animation when placing circles for visual impact
 - **Address Search** - Geocode any address with autocomplete
 - **Population Estimates** - Real-time population data for US locations using Census Bureau data
 - **Private Party Listings** - Estimated vehicle listings based on population density
+- **PDF Export** - Generate branded market reports for dealers with one click
 - **Customizable** - Adjust radius, units (miles/km), and circle color
 - **Shareable URLs** - All settings are saved to the URL for easy sharing
 - **Responsive Design** - Works on desktop and mobile devices
@@ -20,6 +22,7 @@ A lightweight, interactive map tool for visualizing radius areas and estimating 
 - Google Maps JavaScript API
 - US Census Bureau API (2020 Census data)
 - FCC Geo API (county/FIPS lookup)
+- html2canvas + jsPDF (PDF generation)
 
 ## Usage
 
