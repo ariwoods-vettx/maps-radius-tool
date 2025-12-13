@@ -14,7 +14,6 @@
             --vettx-navy: #0f172a;
             --vettx-navy-light: #1e293b;
             --vettx-accent: #3b82f6;
-            --vettx-accent-hover: #2563eb;
             --vettx-text: #334155;
             --vettx-text-light: #64748b;
             --vettx-border: #e2e8f0;
@@ -191,6 +190,16 @@
             background: var(--vettx-navy);
             border-radius: 50%;
             cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .radius-slider input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--vettx-navy);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
@@ -453,6 +462,12 @@
     </div>
 
     <script>
+        // Constants
+        const METERS_PER_MILE = 1609.34;
+        const METERS_PER_KM = 1000;
+        const LISTINGS_PER_MILLION = 500;
+
+        // Global state
         let map;
         let circle;
         let marker;
@@ -612,7 +627,7 @@
 
             const radiusValue = parseFloat(document.getElementById('radiusInput').value) || 5;
             const unit = document.getElementById('unit').value;
-            const radiusInMeters = unit === 'miles' ? radiusValue * 1609.34 : radiusValue * 1000;
+            const radiusInMeters = unit === 'miles' ? radiusValue * METERS_PER_MILE : radiusValue * METERS_PER_KM;
             const color = document.getElementById('color').value;
 
             circle = new google.maps.Circle({
@@ -635,7 +650,7 @@
             circle.addListener('radius_changed', function() {
                 const newRadius = circle.getRadius();
                 const unit = document.getElementById('unit').value;
-                const displayRadius = unit === 'miles' ? newRadius / 1609.34 : newRadius / 1000;
+                const displayRadius = unit === 'miles' ? newRadius / METERS_PER_MILE : newRadius / METERS_PER_KM;
                 syncRadiusControls(displayRadius);
                 debouncedUpdatePopulation();
                 updateUrl();
@@ -723,11 +738,9 @@
                 (u) => `https://thingproxy.freeboard.io/fetch/${u}`
             ];
 
-            let lastError = null;
             for (const proxy of proxies) {
                 try {
                     const proxyUrl = proxy(url);
-                    console.log('Trying proxy:', proxyUrl.substring(0, 50) + '...');
                     const response = await fetch(proxyUrl, {
                         headers: {
                             'Accept': 'application/json'
@@ -738,15 +751,11 @@
                         try {
                             return JSON.parse(text);
                         } catch (parseError) {
-                            console.log('JSON parse failed, response was:', text.substring(0, 100));
                             continue;
                         }
-                    } else {
-                        console.log('Proxy returned status:', response.status);
                     }
                 } catch (e) {
-                    console.log('Proxy failed:', e.message);
-                    lastError = e;
+                    // Try next proxy
                 }
             }
             throw new Error('All proxies failed. Try disabling Enhanced Tracking Protection or ad blockers.');
@@ -757,7 +766,7 @@
             const content = document.getElementById('populationContent');
 
             panel.classList.add('show');
-            content.innerHTML = '<div class="population-loading"><div class="spinner"></div><span>Calculating population...</span></div>';
+            content.innerHTML = '<div class="population-loading"><div class="spinner"></div><span>Calculating listings...</span></div>';
 
             try {
                 // Get county info from FCC Area API via CORS proxy
@@ -821,10 +830,10 @@
 
             const content = document.getElementById('populationContent');
             const radiusMeters = circle.getRadius();
-            const radiusMiles = radiusMeters / 1609.34;
+            const radiusMiles = radiusMeters / METERS_PER_MILE;
             const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
             const estimatedPopulation = Math.round(censusData.populationDensity * circleAreaSqMiles);
-            const privatePartyListings = Math.round((estimatedPopulation / 1000000) * 500);
+            const privatePartyListings = Math.round((estimatedPopulation / 1000000) * LISTINGS_PER_MILLION);
             const formatNumber = (num) => num.toLocaleString();
             const emoji = getListingsEmoji(privatePartyListings);
             const center = circle.getCenter();
@@ -891,7 +900,6 @@
             const { Geocoder } = await google.maps.importLibrary("geocoding");
             const { Autocomplete } = await google.maps.importLibrary("places");
             
-            window.MapClass = Map;
             window.AdvancedMarkerElement = AdvancedMarkerElement;
             window.GeocoderClass = Geocoder;
             window.AutocompleteClass = Autocomplete;
