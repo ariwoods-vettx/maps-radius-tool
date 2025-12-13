@@ -333,6 +333,52 @@
         let censusData = null;
         let populationUpdateTimeout = null;
 
+        // URL parameter handling
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                address: params.get('address'),
+                radius: params.get('radius'),
+                unit: params.get('unit'),
+                color: params.get('color')
+            };
+        }
+
+        function updateUrl() {
+            const address = document.getElementById('address').value.trim();
+            if (!address) return;
+
+            const params = new URLSearchParams();
+            params.set('address', address);
+            params.set('radius', document.getElementById('radiusInput').value);
+            params.set('unit', document.getElementById('unit').value);
+            params.set('color', document.getElementById('color').value);
+
+            const newUrl = `${window.location.pathname}?${params.toString()}`;
+            window.history.replaceState({}, '', newUrl);
+        }
+
+        function loadFromUrl() {
+            const params = getUrlParams();
+
+            if (params.radius) {
+                document.getElementById('radiusInput').value = params.radius;
+                document.getElementById('radiusSlider').value = Math.min(params.radius, 500);
+            }
+            if (params.unit) {
+                document.getElementById('unit').value = params.unit;
+                document.getElementById('unitDisplay').textContent = params.unit;
+            }
+            if (params.color) {
+                document.getElementById('color').value = params.color;
+            }
+            if (params.address) {
+                document.getElementById('address').value = params.address;
+                // Auto-search after map loads
+                setTimeout(() => searchAddress(), 500);
+            }
+        }
+
         function initMap() {
             map = new google.maps.Map(document.getElementById('map'), {
                 center: { lat: 39.8283, lng: -98.5795 },
@@ -367,6 +413,9 @@
                 const place = autocomplete.getPlace();
                 if (place.geometry) placeMarkerAndCircle(place.geometry.location);
             });
+
+            // Load settings from URL if present
+            loadFromUrl();
         }
 
         function searchAddress() {
@@ -423,6 +472,7 @@
 
             map.fitBounds(circle.getBounds());
             fetchPopulationData(location.lat(), location.lng());
+            updateUrl();
 
             circle.addListener('radius_changed', function() {
                 const newRadius = circle.getRadius();
@@ -430,6 +480,7 @@
                 const displayRadius = unit === 'miles' ? newRadius / 1609.34 : newRadius / 1000;
                 syncRadiusControls(displayRadius);
                 debouncedUpdatePopulation();
+                updateUrl();
             });
 
             // Move marker as circle is dragged (visual feedback only)
@@ -457,6 +508,7 @@
             document.getElementById('radiusInput').value = radiusValue;
             updateCircle(radiusValue);
             debouncedUpdatePopulation();
+            updateUrl();
         }
 
         function updateRadiusFromInput() {
@@ -465,6 +517,7 @@
             slider.value = Math.min(radiusValue, parseFloat(slider.max));
             updateCircle(radiusValue);
             debouncedUpdatePopulation();
+            updateUrl();
         }
 
         function updateUnit() {
@@ -473,6 +526,7 @@
             const radiusValue = parseFloat(document.getElementById('radiusInput').value) || 5;
             updateCircle(radiusValue);
             debouncedUpdatePopulation();
+            updateUrl();
         }
 
         function updateCircle(radiusValue) {
@@ -489,6 +543,7 @@
             if (circle) {
                 circle.setOptions({ strokeColor: color, fillColor: color });
             }
+            updateUrl();
         }
 
         function debouncedUpdatePopulation() {
