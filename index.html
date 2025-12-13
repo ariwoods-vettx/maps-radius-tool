@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Map Radius Tool | VETTX</title>
+    <link rel="icon" type="image/x-icon" href="https://www.vettx.com/favicon.ico">
+    <link rel="icon" type="image/png" href="https://cdn.prod.website-files.com/6813c1400a0cd2b3d0b4ba2b/6813c1400a0cd2b3d0b4ba54_Favicon%2032.png" sizes="32x32">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -111,24 +113,52 @@
 
         .btn {
             padding: 10px 24px;
-            background: var(--vettx-navy);
+            background: linear-gradient(135deg, var(--vettx-navy) 0%, var(--vettx-navy-light) 100%);
             color: white;
             border: none;
             border-radius: 6px;
             font-size: 0.9375rem;
             font-family: inherit;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.3s ease;
             font-weight: 600;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
         }
 
         .btn:hover {
-            background: var(--vettx-navy-light);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
+            transform: translateY(0);
         }
 
         .btn:disabled {
             background: #94a3b8;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn:disabled::before {
+            display: none;
         }
 
         .radius-control {
@@ -233,14 +263,22 @@
         }
 
         .population-panel {
-            background: var(--vettx-navy);
+            background: linear-gradient(135deg, var(--vettx-navy) 0%, #1a2744 100%);
             color: white;
             padding: 16px 20px;
             display: none;
+            position: relative;
+            overflow: hidden;
         }
 
         .population-panel.show {
             display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .population-panel h2 {
@@ -255,6 +293,29 @@
         .population-value {
             font-size: 1.75rem;
             font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .population-emoji {
+            font-size: 1.5rem;
+            animation: bounce 0.5s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
         }
 
         .population-details {
@@ -379,6 +440,7 @@
             </div>
         </div>
         <div id="map"></div>
+        <canvas id="confetti" class="confetti-canvas"></canvas>
     </div>
 
     <script>
@@ -388,6 +450,90 @@
         let geocoder;
         let censusData = null;
         let populationUpdateTimeout = null;
+
+        // Confetti animation
+        const confettiCanvas = document.getElementById('confetti');
+        const confettiCtx = confettiCanvas.getContext('2d');
+        let confettiParticles = [];
+
+        function resizeConfetti() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
+        resizeConfetti();
+        window.addEventListener('resize', resizeConfetti);
+
+        function createConfetti(count = 100) {
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+            for (let i = 0; i < count; i++) {
+                confettiParticles.push({
+                    x: Math.random() * confettiCanvas.width,
+                    y: -20 - Math.random() * 100,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    speedY: Math.random() * 3 + 2,
+                    speedX: Math.random() * 2 - 1,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: Math.random() * 10 - 5
+                });
+            }
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            if (confettiParticles.length === 0) return;
+
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+            confettiParticles = confettiParticles.filter(p => {
+                p.y += p.speedY;
+                p.x += p.speedX;
+                p.rotation += p.rotationSpeed;
+
+                confettiCtx.save();
+                confettiCtx.translate(p.x, p.y);
+                confettiCtx.rotate(p.rotation * Math.PI / 180);
+                confettiCtx.fillStyle = p.color;
+                confettiCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+                confettiCtx.restore();
+
+                return p.y < confettiCanvas.height + 20;
+            });
+
+            if (confettiParticles.length > 0) {
+                requestAnimationFrame(animateConfetti);
+            }
+        }
+
+        // Animated counter
+        function animateCounter(element, target, duration = 1000) {
+            const start = 0;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(start + (target - start) * easeOut);
+                element.textContent = '~' + current.toLocaleString() + ' people';
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
+        // Get emoji based on population
+        function getPopulationEmoji(population) {
+            if (population >= 1000000) return '🏙️';
+            if (population >= 500000) return '🌆';
+            if (population >= 100000) return '🏘️';
+            if (population >= 50000) return '🏠';
+            if (population >= 10000) return '🏡';
+            if (population >= 1000) return '🌳';
+            return '🌲';
+        }
 
         // URL parameter handling
         function getUrlParams() {
@@ -694,6 +840,8 @@
             }
         }
 
+        let lastPopulation = 0;
+
         function updatePopulationDisplay() {
             if (!censusData || !circle) return;
 
@@ -703,9 +851,23 @@
             const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
             const estimatedPopulation = Math.round(censusData.populationDensity * circleAreaSqMiles);
             const formatNumber = (num) => num.toLocaleString();
+            const emoji = getPopulationEmoji(estimatedPopulation);
+
+            // Trigger confetti for significant population milestones
+            if (estimatedPopulation >= 100000 && lastPopulation < 100000) {
+                createConfetti(150);
+            } else if (estimatedPopulation >= 50000 && lastPopulation < 50000) {
+                createConfetti(80);
+            } else if (estimatedPopulation >= 10000 && lastPopulation < 10000) {
+                createConfetti(50);
+            }
+            lastPopulation = estimatedPopulation;
 
             content.innerHTML = `
-                <div class="population-value">~${formatNumber(estimatedPopulation)} people</div>
+                <div class="population-value">
+                    <span class="population-emoji">${emoji}</span>
+                    <span id="popCounter">~0 people</span>
+                </div>
                 <div class="population-details">
                     <div class="population-detail">
                         <strong>${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi</strong>
@@ -722,6 +884,10 @@
                 </div>
                 <div class="population-note">* Estimate based on ${censusData.countyName} County average density (2020 Census)</div>
             `;
+
+            // Animate the counter
+            const counterEl = document.getElementById('popCounter');
+            animateCounter(counterEl, estimatedPopulation, 800);
         }
 
         function showError(message) {
