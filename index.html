@@ -1025,10 +1025,23 @@
                 pdf.setTextColor(100, 116, 139);
                 pdf.text(`${radiusValue} ${unit} radius | ${censusData.countyName} County`, 40, 118);
 
-                // Map image
+                // Map image - preserve aspect ratio
                 const mapImgData = mapCanvas.toDataURL('image/png');
-                const mapWidth = 420;
-                const mapHeight = 300;
+                const maxMapWidth = 420;
+                const maxMapHeight = 300;
+                const canvasRatio = mapCanvas.width / mapCanvas.height;
+                let mapWidth, mapHeight;
+
+                if (canvasRatio > maxMapWidth / maxMapHeight) {
+                    // Canvas is wider - fit to width
+                    mapWidth = maxMapWidth;
+                    mapHeight = maxMapWidth / canvasRatio;
+                } else {
+                    // Canvas is taller - fit to height
+                    mapHeight = maxMapHeight;
+                    mapWidth = maxMapHeight * canvasRatio;
+                }
+
                 pdf.addImage(mapImgData, 'PNG', 40, 135, mapWidth, mapHeight);
 
                 // Stats panel
