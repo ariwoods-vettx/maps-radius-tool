@@ -92,10 +92,17 @@
             cursor: not-allowed;
         }
 
+        .radius-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
         .radius-slider {
             display: flex;
             align-items: center;
             gap: 10px;
+            flex: 1;
         }
 
         .radius-slider input[type="range"] {
@@ -117,11 +124,29 @@
             cursor: pointer;
         }
 
-        .radius-value {
-            min-width: 80px;
-            text-align: right;
-            font-weight: 600;
-            color: #333;
+        .radius-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .radius-input-group input[type="number"] {
+            width: 80px;
+            padding: 8px 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .radius-input-group input[type="number"]:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+
+        .radius-input-group span {
+            color: #666;
+            font-weight: 500;
         }
 
         #map {
@@ -200,9 +225,15 @@
             </div>
             <div class="form-row" style="margin-top: 15px;">
                 <div class="form-group" style="flex: 1;">
-                    <label>Radius: <span id="radiusDisplay">5</span> <span id="unitDisplay">miles</span></label>
-                    <div class="radius-slider">
-                        <input type="range" id="radius" min="0.1" max="50" step="0.1" value="5">
+                    <label>Radius</label>
+                    <div class="radius-control">
+                        <div class="radius-slider">
+                            <input type="range" id="radiusSlider" min="0.1" max="500" step="0.1" value="5">
+                        </div>
+                        <div class="radius-input-group">
+                            <input type="number" id="radiusInput" min="0.1" max="10000" step="0.1" value="5">
+                            <span id="unitDisplay">miles</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -242,8 +273,9 @@
                 }
             });
 
-            document.getElementById('radius').addEventListener('input', updateRadius);
-            document.getElementById('unit').addEventListener('change', updateRadius);
+            document.getElementById('radiusSlider').addEventListener('input', updateRadiusFromSlider);
+            document.getElementById('radiusInput').addEventListener('input', updateRadiusFromInput);
+            document.getElementById('unit').addEventListener('change', updateUnit);
             document.getElementById('color').addEventListener('input', updateCircleColor);
 
             // Initialize Places Autocomplete
@@ -297,7 +329,7 @@
             });
 
             // Get radius in meters
-            const radiusValue = parseFloat(document.getElementById('radius').value);
+            const radiusValue = parseFloat(document.getElementById('radiusInput').value) || 5;
             const unit = document.getElementById('unit').value;
             const radiusInMeters = unit === 'miles' ? radiusValue * 1609.34 : radiusValue * 1000;
 
@@ -326,8 +358,7 @@
                 const newRadius = circle.getRadius();
                 const unit = document.getElementById('unit').value;
                 const displayRadius = unit === 'miles' ? newRadius / 1609.34 : newRadius / 1000;
-                document.getElementById('radius').value = Math.min(displayRadius, 50);
-                document.getElementById('radiusDisplay').textContent = displayRadius.toFixed(1);
+                syncRadiusControls(displayRadius);
             });
 
             // Move marker when circle is dragged
@@ -336,14 +367,40 @@
             });
         }
 
-        function updateRadius() {
-            const radiusValue = parseFloat(document.getElementById('radius').value);
-            const unit = document.getElementById('unit').value;
+        function syncRadiusControls(value) {
+            const slider = document.getElementById('radiusSlider');
+            const input = document.getElementById('radiusInput');
 
-            document.getElementById('radiusDisplay').textContent = radiusValue;
+            // Clamp slider to its max, but allow input to show actual value
+            slider.value = Math.min(value, parseFloat(slider.max));
+            input.value = parseFloat(value).toFixed(1);
+        }
+
+        function updateRadiusFromSlider() {
+            const radiusValue = parseFloat(document.getElementById('radiusSlider').value);
+            document.getElementById('radiusInput').value = radiusValue;
+            updateCircle(radiusValue);
+        }
+
+        function updateRadiusFromInput() {
+            const radiusValue = parseFloat(document.getElementById('radiusInput').value) || 0.1;
+            const slider = document.getElementById('radiusSlider');
+            slider.value = Math.min(radiusValue, parseFloat(slider.max));
+            updateCircle(radiusValue);
+        }
+
+        function updateUnit() {
+            const unit = document.getElementById('unit').value;
             document.getElementById('unitDisplay').textContent = unit;
 
+            // Update circle with current radius value
+            const radiusValue = parseFloat(document.getElementById('radiusInput').value) || 5;
+            updateCircle(radiusValue);
+        }
+
+        function updateCircle(radiusValue) {
             if (circle) {
+                const unit = document.getElementById('unit').value;
                 const radiusInMeters = unit === 'miles' ? radiusValue * 1609.34 : radiusValue * 1000;
                 circle.setRadius(radiusInMeters);
                 map.fitBounds(circle.getBounds());
