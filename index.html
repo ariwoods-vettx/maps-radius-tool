@@ -421,11 +421,11 @@
             <p class="info-text">Enter an address and click "Draw Circle" to visualize a radius area on the map. (US addresses show population estimates)</p>
         </div>
         <div class="population-panel" id="populationPanel">
-            <h2>Estimated Population Within Radius</h2>
+            <h2>Estimated Private Party Listings</h2>
             <div id="populationContent">
                 <div class="population-loading">
                     <div class="spinner"></div>
-                    <span>Calculating population...</span>
+                    <span>Calculating listings...</span>
                 </div>
             </div>
         </div>
@@ -440,8 +440,8 @@
         let censusData = null;
         let populationUpdateTimeout = null;
 
-        // Animated counter
-        function animateCounter(element, target, duration = 1000) {
+        // Animated counter for listings
+        function animateCounterListings(element, target, duration = 1000) {
             const start = 0;
             const startTime = performance.now();
 
@@ -450,7 +450,7 @@
                 const progress = Math.min(elapsed / duration, 1);
                 const easeOut = 1 - Math.pow(1 - progress, 3);
                 const current = Math.floor(start + (target - start) * easeOut);
-                element.textContent = '~' + current.toLocaleString() + ' people';
+                element.textContent = '~' + current.toLocaleString() + ' listings';
 
                 if (progress < 1) {
                     requestAnimationFrame(update);
@@ -790,12 +790,12 @@
             content.innerHTML = `
                 <div class="population-value">
                     <span class="population-emoji">${emoji}</span>
-                    <span id="popCounter">~0 people</span>
+                    <span id="listingsCounter">~0 listings</span>
                 </div>
                 <div class="population-details">
                     <div class="population-detail">
-                        <strong>${formatNumber(privatePartyListings)}</strong>
-                        Est. Private Party Listings
+                        <strong>~${formatNumber(estimatedPopulation)}</strong>
+                        Est. Population
                     </div>
                     <div class="population-detail">
                         <strong>${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi</strong>
@@ -813,9 +813,9 @@
                 <div class="population-note">* Estimate based on ${censusData.countyName} County average density (2020 Census)</div>
             `;
 
-            // Animate the counter
-            const counterEl = document.getElementById('popCounter');
-            animateCounter(counterEl, estimatedPopulation, 800);
+            // Animate the counter for listings
+            const counterEl = document.getElementById('listingsCounter');
+            animateCounterListings(counterEl, privatePartyListings, 800);
         }
 
         function showError(message) {
