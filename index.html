@@ -788,6 +788,9 @@
             const privatePartyListings = Math.round((estimatedPopulation / 1000000) * 500);
             const formatNumber = (num) => num.toLocaleString();
             const emoji = getPopulationEmoji(estimatedPopulation);
+            const center = circle.getCenter();
+            const lat = center.lat().toFixed(6);
+            const lng = center.lng().toFixed(6);
 
             content.innerHTML = `
                 <div class="population-value">
@@ -802,6 +805,10 @@
                     <div class="population-detail">
                         <strong>${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi</strong>
                         Circle Area
+                    </div>
+                    <div class="population-detail">
+                        <strong>${lat}, ${lng}</strong>
+                        Center Coordinates
                     </div>
                     <div class="population-detail">
                         <strong>${formatNumber(Math.round(censusData.populationDensity))}/sq mi</strong>
