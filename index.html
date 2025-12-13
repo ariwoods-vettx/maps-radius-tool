@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Radius Tool</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .controls h1 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background: #3367d6;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .radius-slider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .radius-slider input[type="range"] {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #e0e0e0;
+            border-radius: 3px;
+            border: none;
+            padding: 0;
+        }
+
+        .radius-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4285f4;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .radius-value {
+            min-width: 80px;
+            text-align: right;
+            font-weight: 600;
+            color: #333;
+        }
+
+        #map {
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-picker input[type="color"] {
+            width: 50px;
+            height: 38px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .info-text {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .form-group {
+                min-width: 100%;
+            }
+
+            .controls {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <h1>Map Radius Tool</h1>
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label for="address">Address</label>
+                    <input type="text" id="address" placeholder="Enter an address..." autocomplete="off">
+                </div>
+                <div class="form-group" style="flex: 0.5; min-width: 120px;">
+                    <label for="unit">Unit</label>
+                    <select id="unit">
+                        <option value="miles">Miles</option>
+                        <option value="km">Kilometers</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 0.5; min-width: 100px;">
+                    <label for="color">Circle Color</label>
+                    <div class="color-picker">
+                        <input type="color" id="color" value="#4285f4">
+                    </div>
+                </div>
+                <button class="btn" id="searchBtn">Draw Circle</button>
+            </div>
+            <div class="form-row" style="margin-top: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Radius: <span id="radiusDisplay">5</span> <span id="unitDisplay">miles</span></label>
+                    <div class="radius-slider">
+                        <input type="range" id="radius" min="0.1" max="50" step="0.1" value="5">
+                    </div>
+                </div>
+            </div>
+            <div class="error-message" id="error"></div>
+            <p class="info-text">Enter an address and click "Draw Circle" to visualize a radius area on the map. Adjust the radius using the slider.</p>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map;
+        let circle;
+        let marker;
+        let geocoder;
+
+        function initMap() {
+            // Initialize the map centered on the US
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 39.8283, lng: -98.5795 },
+                zoom: 4,
+                styles: [
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels',
+                        stylers: [{ visibility: 'off' }]
+                    }
+                ]
+            });
+
+            geocoder = new google.maps.Geocoder();
+
+            // Set up event listeners
+            document.getElementById('searchBtn').addEventListener('click', searchAddress);
+            document.getElementById('address').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchAddress();
+                }
+            });
+
+            document.getElementById('radius').addEventListener('input', updateRadius);
+            document.getElementById('unit').addEventListener('change', updateRadius);
+            document.getElementById('color').addEventListener('input', updateCircleColor);
+
+            // Initialize Places Autocomplete
+            const autocomplete = new google.maps.places.Autocomplete(
+                document.getElementById('address'),
+                { types: ['geocode'] }
+            );
+
+            autocomplete.addListener('place_changed', function() {
+                const place = autocomplete.getPlace();
+                if (place.geometry) {
+                    placeMarkerAndCircle(place.geometry.location);
+                }
+            });
+        }
+
+        function searchAddress() {
+            const address = document.getElementById('address').value.trim();
+
+            if (!address) {
+                showError('Please enter an address');
+                return;
+            }
+
+            hideError();
+            document.getElementById('searchBtn').disabled = true;
+            document.getElementById('searchBtn').textContent = 'Searching...';
+
+            geocoder.geocode({ address: address }, function(results, status) {
+                document.getElementById('searchBtn').disabled = false;
+                document.getElementById('searchBtn').textContent = 'Draw Circle';
+
+                if (status === 'OK' && results[0]) {
+                    placeMarkerAndCircle(results[0].geometry.location);
+                } else {
+                    showError('Address not found. Please try a different address.');
+                }
+            });
+        }
+
+        function placeMarkerAndCircle(location) {
+            // Remove existing marker and circle
+            if (marker) marker.setMap(null);
+            if (circle) circle.setMap(null);
+
+            // Create marker
+            marker = new google.maps.Marker({
+                position: location,
+                map: map,
+                animation: google.maps.Animation.DROP
+            });
+
+            // Get radius in meters
+            const radiusValue = parseFloat(document.getElementById('radius').value);
+            const unit = document.getElementById('unit').value;
+            const radiusInMeters = unit === 'miles' ? radiusValue * 1609.34 : radiusValue * 1000;
+
+            // Get color
+            const color = document.getElementById('color').value;
+
+            // Create circle
+            circle = new google.maps.Circle({
+                strokeColor: color,
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: color,
+                fillOpacity: 0.2,
+                map: map,
+                center: location,
+                radius: radiusInMeters,
+                editable: true,
+                draggable: true
+            });
+
+            // Fit map to circle bounds
+            map.fitBounds(circle.getBounds());
+
+            // Update radius display when circle is edited
+            circle.addListener('radius_changed', function() {
+                const newRadius = circle.getRadius();
+                const unit = document.getElementById('unit').value;
+                const displayRadius = unit === 'miles' ? newRadius / 1609.34 : newRadius / 1000;
+                document.getElementById('radius').value = Math.min(displayRadius, 50);
+                document.getElementById('radiusDisplay').textContent = displayRadius.toFixed(1);
+            });
+
+            // Move marker when circle is dragged
+            circle.addListener('center_changed', function() {
+                marker.setPosition(circle.getCenter());
+            });
+        }
+
+        function updateRadius() {
+            const radiusValue = parseFloat(document.getElementById('radius').value);
+            const unit = document.getElementById('unit').value;
+
+            document.getElementById('radiusDisplay').textContent = radiusValue;
+            document.getElementById('unitDisplay').textContent = unit;
+
+            if (circle) {
+                const radiusInMeters = unit === 'miles' ? radiusValue * 1609.34 : radiusValue * 1000;
+                circle.setRadius(radiusInMeters);
+                map.fitBounds(circle.getBounds());
+            }
+        }
+
+        function updateCircleColor() {
+            const color = document.getElementById('color').value;
+            if (circle) {
+                circle.setOptions({
+                    strokeColor: color,
+                    fillColor: color
+                });
+            }
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.remove('show');
+        }
+    </script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCQF6fsF0cRGXk3ts_4wZ_-Bw1TrBU3hZg&libraries=places&callback=initMap">
+    </script>
+</body>
+</html>
