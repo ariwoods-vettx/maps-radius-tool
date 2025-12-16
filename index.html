@@ -566,7 +566,7 @@
                 const progress = Math.min(elapsed / duration, 1);
                 const easeOut = 1 - Math.pow(1 - progress, 3);
                 const current = Math.floor(target * easeOut);
-                element.textContent = '~' + current.toLocaleString() + ' listings';
+                element.textContent = '~' + current.toLocaleString() + ' listings/mo';
 
                 if (progress < 1) {
                     requestAnimationFrame(update);
@@ -926,10 +926,10 @@
             const center = circle.getCenter();
 
             elements.populationContent.innerHTML = `
-                <h2>Estimated Private Party Listings</h2>
+                <h2>Estimated Private Party Listings Per Month</h2>
                 <div class="population-value">
                     <span class="population-emoji">${emoji}</span>
-                    <span id="listingsCounter">~0 listings</span>
+                    <span id="listingsCounter">~0 listings/mo</span>
                 </div>
                 <div class="population-details">
                     <div class="population-detail">
@@ -1059,7 +1059,7 @@
                 pdf.roundedRect(40, statsY, 250, 70, 8, 8, 'F');
                 pdf.setFontSize(10);
                 pdf.setTextColor(100, 116, 139);
-                pdf.text('ESTIMATED PRIVATE PARTY LISTINGS', 55, statsY + 22);
+                pdf.text('ESTIMATED PRIVATE PARTY LISTINGS / MONTH', 55, statsY + 22);
                 pdf.setFontSize(32);
                 pdf.setFont('helvetica', 'bold');
                 pdf.setTextColor(5, 150, 105); // green
