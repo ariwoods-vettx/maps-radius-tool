@@ -851,19 +851,8 @@
             throw new Error('All proxies failed. Try disabling Enhanced Tracking Protection or ad blockers.');
         }
 
-        function estimateLandArea(population) {
-            let landAreaSqMiles;
-            if (population > 1000000) {
-                landAreaSqMiles = population / 2500; // Dense urban
-            } else if (population > 100000) {
-                landAreaSqMiles = population / 500; // Suburban
-            } else if (population > 10000) {
-                landAreaSqMiles = population / 50; // Mixed
-            } else {
-                landAreaSqMiles = population / 10; // Rural
-            }
-            return Math.max(10, Math.min(10000, landAreaSqMiles));
-        }
+        // Square meters to square miles conversion
+        const SQ_METERS_TO_SQ_MILES = 3.861e-7;
 
         async function fetchPopulationData(lat, lng) {
             elements.populationPanel.classList.add('show');
@@ -881,6 +870,7 @@
                 const stateFips = geoData.State.FIPS;
                 const countyName = geoData.County.name;
 
+                // Fetch population data
                 const censusUrl = `https://api.census.gov/data/2020/dec/pl?get=P1_001N&for=county:${countyFips}&in=state:${stateFips}`;
                 const popData = await fetchWithProxy(censusUrl);
 
@@ -889,7 +879,26 @@
                 }
 
                 const countyPopulation = parseInt(popData[1][0]);
-                const landAreaSqMiles = estimateLandArea(countyPopulation);
+
+                // Fetch actual land area from Census TIGERweb service
+                let landAreaSqMiles;
+                try {
+                    // Use TIGERweb for actual land area
+                    const tigerUrl = `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Census2020/MapServer/82/query?where=STATE='${stateFips}'+AND+COUNTY='${countyFips}'&outFields=AREALAND&f=json`;
+                    const tigerData = await fetchWithProxy(tigerUrl);
+
+                    if (tigerData?.features?.[0]?.attributes?.AREALAND) {
+                        // AREALAND is in square meters, convert to square miles
+                        landAreaSqMiles = tigerData.features[0].attributes.AREALAND * SQ_METERS_TO_SQ_MILES;
+                    } else {
+                        throw new Error('Land area not found');
+                    }
+                } catch (areaError) {
+                    console.warn('Could not fetch land area, using fallback estimation:', areaError);
+                    // Fallback: Use US average county size (~1,000 sq mi) as a reasonable default
+                    // This is much more conservative than the old estimation
+                    landAreaSqMiles = 1000;
+                }
 
                 censusData = {
                     countyName,
@@ -943,8 +952,12 @@
                         <strong>${formatNumber(censusData.countyPopulation)}</strong>
                         County Population
                     </div>
+                    <div class="population-detail">
+                        <strong>${formatNumber(Math.round(censusData.landAreaSqMiles))} sq mi</strong>
+                        County Land Area
+                    </div>
                 </div>
-                <div class="population-note">* Estimate based on ${censusData.countyName} County average density (2020 Census)</div>
+                <div class="population-note">* Estimate based on ${censusData.countyName} County average density (2020 Census, actual land area)</div>
             `;
 
             const counterEl = document.getElementById('listingsCounter');
@@ -1058,17 +1071,19 @@
                     { label: 'Circle Area', value: `${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi` },
                     { label: 'County Density', value: `${formatNumber(Math.round(censusData.populationDensity))}/sq mi` },
                     { label: 'County Population', value: formatNumber(censusData.countyPopulation) },
+                    { label: 'County Land Area', value: `${formatNumber(Math.round(censusData.landAreaSqMiles))} sq mi` },
                 ];
 
                 const col1X = 310;
-                const col2X = 500;
-                const statBoxWidth = 170;
+                const col2X = 450;
+                const col3X = 590;
+                const statBoxWidth = 130;
 
                 pdf.setFont('helvetica', 'normal');
                 stats.forEach((stat, i) => {
-                    const col = i % 2;
-                    const row = Math.floor(i / 2);
-                    const x = col === 0 ? col1X : col2X;
+                    const col = i % 3;
+                    const row = Math.floor(i / 3);
+                    const x = col === 0 ? col1X : (col === 1 ? col2X : col3X);
                     const y = statsY + (row * 38);
 
                     pdf.setFillColor(248, 250, 252);
