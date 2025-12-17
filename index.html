@@ -290,7 +290,6 @@
         .population-panel {
             background: linear-gradient(135deg, var(--vettx-navy) 0%, #1a2744 100%);
             color: white;
-            padding: 16px 20px;
             display: none;
             position: relative;
             overflow: hidden;
@@ -304,6 +303,73 @@
         @keyframes slideDown {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        .population-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .population-header:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .population-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .population-header h2 {
+            font-size: 0.75rem;
+            font-weight: 500;
+            opacity: 0.7;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .population-header-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .population-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }
+
+        .population-toggle svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .population-panel.collapsed .population-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        .population-body {
+            padding: 0 20px 16px 20px;
+            transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
+            max-height: 500px;
+            opacity: 1;
+            overflow: hidden;
+        }
+
+        .population-panel.collapsed .population-body {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            opacity: 0;
         }
 
         .population-panel h2 {
@@ -505,10 +571,24 @@
             <p class="info-text">Enter an address and click "Draw Circle" to visualize a radius area on the map. (US addresses show population estimates)</p>
         </div>
         <div class="population-panel" id="populationPanel">
-            <div id="populationContent">
-                <div class="population-loading">
-                    <div class="spinner"></div>
-                    <span>Calculating listings...</span>
+            <div class="population-header" id="populationHeader">
+                <div class="population-header-left">
+                    <h2>Est. Private Party Listings</h2>
+                    <span class="population-header-value" id="populationHeaderValue">--</span>
+                </div>
+                <div class="population-toggle">
+                    <span>Details</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+            </div>
+            <div class="population-body" id="populationBody">
+                <div id="populationContent">
+                    <div class="population-loading">
+                        <div class="spinner"></div>
+                        <span>Calculating listings...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -689,8 +769,14 @@
             elements.searchBtn = document.getElementById('searchBtn');
             elements.error = document.getElementById('error');
             elements.populationPanel = document.getElementById('populationPanel');
+            elements.populationHeader = document.getElementById('populationHeader');
+            elements.populationHeaderValue = document.getElementById('populationHeaderValue');
             elements.populationContent = document.getElementById('populationContent');
             elements.exportBtn = document.getElementById('exportBtn');
+        }
+
+        function togglePopulationPanel() {
+            elements.populationPanel.classList.toggle('collapsed');
         }
 
         function initMap() {
@@ -721,6 +807,7 @@
             elements.unit.addEventListener('change', handleUnitChange);
             elements.color.addEventListener('input', handleColorChange);
             elements.exportBtn.addEventListener('click', exportToPDF);
+            elements.populationHeader.addEventListener('click', togglePopulationPanel);
 
             // Autocomplete
             const autocomplete = new window.AutocompleteClass(
@@ -990,6 +1077,9 @@
 
             const privatePartyListings = Math.round((totalPopulation / 1000000) * LISTINGS_PER_MILLION);
             const emoji = getListingsEmoji(privatePartyListings);
+
+            // Update header value for collapsed view
+            elements.populationHeaderValue.textContent = `~${formatNumber(privatePartyListings)}/mo`;
 
             // Get top 5 counties by population for display
             const topCounties = [...countiesInRadius]
