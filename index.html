@@ -537,13 +537,10 @@
         }
 
         .circle-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
+            padding: 12px;
             background: var(--vettx-bg);
-            border-radius: 6px;
-            margin-bottom: 8px;
+            border-radius: 8px;
+            margin-bottom: 12px;
             border: 2px solid transparent;
             cursor: pointer;
             transition: all 0.2s;
@@ -558,55 +555,30 @@
             background: rgba(0, 158, 247, 0.05);
         }
 
+        .circle-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
         .circle-card-color {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             flex-shrink: 0;
             border: 2px solid white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
 
-        .circle-card-info {
-            flex: 1;
-            min-width: 0;
-        }
-
         .circle-card-address {
-            font-size: 0.8125rem;
-            font-weight: 500;
+            flex: 1;
+            font-size: 0.875rem;
+            font-weight: 600;
             color: var(--vettx-navy);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-        }
-
-        .circle-card-stats {
-            font-size: 0.75rem;
-            color: var(--vettx-text-light);
-            display: flex;
-            gap: 8px;
-        }
-
-        .circle-card-stats span {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
-
-        .circle-card-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .circle-card-radius {
-            width: 60px;
-            padding: 4px 6px;
-            border: 1px solid var(--vettx-border);
-            border-radius: 4px;
-            font-size: 0.75rem;
-            text-align: center;
         }
 
         .circle-card-delete {
@@ -621,6 +593,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
 
         .circle-card-delete:hover {
@@ -631,6 +604,88 @@
         .circle-card-delete svg {
             width: 16px;
             height: 16px;
+        }
+
+        .circle-card-listings {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: linear-gradient(135deg, var(--vettx-navy) 0%, #1a2744 100%);
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .circle-card-listings-icon {
+            font-size: 1.25rem;
+        }
+
+        .circle-card-listings-value {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--vettx-accent);
+        }
+
+        .circle-card-listings-label {
+            font-size: 0.6875rem;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+        }
+
+        .circle-card-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .circle-card-metric {
+            display: flex;
+            flex-direction: column;
+            padding: 6px 8px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid var(--vettx-border);
+        }
+
+        .circle-card-metric-value {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--vettx-navy);
+        }
+
+        .circle-card-metric-label {
+            font-size: 0.625rem;
+            color: var(--vettx-text-light);
+            text-transform: uppercase;
+        }
+
+        .circle-card-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--vettx-border);
+        }
+
+        .circle-card-controls label {
+            font-size: 0.6875rem;
+            color: var(--vettx-text-light);
+            text-transform: uppercase;
+        }
+
+        .circle-card-radius {
+            width: 60px;
+            padding: 4px 6px;
+            border: 1px solid var(--vettx-border);
+            border-radius: 4px;
+            font-size: 0.8125rem;
+            text-align: center;
+        }
+
+        .circle-card-unit {
+            font-size: 0.75rem;
+            color: var(--vettx-text-light);
         }
 
         @media (max-width: 768px) {
@@ -1288,34 +1343,66 @@
             elements.drawerContent.innerHTML = circles.length === 0
                 ? '<p style="text-align: center; color: var(--vettx-text-light); padding: 20px;">No circles added yet.<br>Enter an address above to add a market area.</p>'
                 : circles.map(cd => {
-                    const listings = cd.censusData && !cd.censusData.error
+                    const hasData = cd.censusData && !cd.censusData.error;
+                    const listings = hasData
                         ? Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION)
                         : '--';
-                    const population = cd.censusData && !cd.censusData.error
+                    const population = hasData
                         ? formatNumber(cd.censusData.totalPopulation)
                         : '--';
+                    const counties = hasData
+                        ? cd.censusData.countiesInRadius.length
+                        : '--';
+                    const states = hasData
+                        ? new Set(cd.censusData.countiesInRadius.map(c => c.s)).size
+                        : '--';
+                    const circleArea = Math.round(Math.PI * cd.radius * cd.radius);
+                    const density = hasData
+                        ? formatNumber(Math.round(cd.censusData.totalPopulation / circleArea))
+                        : '--';
+                    const emoji = hasData ? getListingsEmoji(listings) : '🚗';
                     const isActive = cd.id === activeCircleId;
 
                     return `
                         <div class="circle-card ${isActive ? 'active' : ''}" data-id="${cd.id}" onclick="selectCircle(${cd.id})">
-                            <div class="circle-card-color" style="background-color: ${cd.color}"></div>
-                            <div class="circle-card-info">
-                                <div class="circle-card-address">${cd.address}</div>
-                                <div class="circle-card-stats">
-                                    <span>~${listings} listings/mo</span>
-                                    <span>Pop: ${population}</span>
-                                </div>
-                            </div>
-                            <div class="circle-card-controls">
-                                <input type="number" class="circle-card-radius" value="${cd.radius}" min="1" max="500"
-                                    onclick="event.stopPropagation()"
-                                    onchange="updateCircleRadius(${cd.id}, this.value)">
-                                <span style="font-size: 0.75rem; color: var(--vettx-text-light)">mi</span>
+                            <div class="circle-card-header">
+                                <div class="circle-card-color" style="background-color: ${cd.color}"></div>
+                                <div class="circle-card-address" title="${cd.address}">${cd.address}</div>
                                 <button class="circle-card-delete" onclick="event.stopPropagation(); removeCircle(${cd.id})" title="Remove circle">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
+                            </div>
+                            <div class="circle-card-listings">
+                                <span class="circle-card-listings-icon">${emoji}</span>
+                                <span class="circle-card-listings-value">~${formatNumber(listings)}</span>
+                                <span class="circle-card-listings-label">listings/mo</span>
+                            </div>
+                            <div class="circle-card-metrics">
+                                <div class="circle-card-metric">
+                                    <span class="circle-card-metric-value">${population}</span>
+                                    <span class="circle-card-metric-label">Population</span>
+                                </div>
+                                <div class="circle-card-metric">
+                                    <span class="circle-card-metric-value">${counties}</span>
+                                    <span class="circle-card-metric-label">Counties</span>
+                                </div>
+                                <div class="circle-card-metric">
+                                    <span class="circle-card-metric-value">${states}</span>
+                                    <span class="circle-card-metric-label">State${states !== 1 ? 's' : ''}</span>
+                                </div>
+                                <div class="circle-card-metric">
+                                    <span class="circle-card-metric-value">${density}/mi²</span>
+                                    <span class="circle-card-metric-label">Density</span>
+                                </div>
+                            </div>
+                            <div class="circle-card-controls">
+                                <label>Radius:</label>
+                                <input type="number" class="circle-card-radius" value="${cd.radius}" min="1" max="500"
+                                    onclick="event.stopPropagation()"
+                                    onchange="updateCircleRadius(${cd.id}, this.value)">
+                                <span class="circle-card-unit">mi</span>
                             </div>
                         </div>
                     `;
