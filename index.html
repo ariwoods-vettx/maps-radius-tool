@@ -293,6 +293,8 @@
             display: none;
             position: relative;
             overflow: hidden;
+            flex-shrink: 0;
+            z-index: 5;
         }
 
         .population-panel.show {
@@ -489,6 +491,8 @@
             max-height: 200px;
             overflow-y: auto;
             display: none;
+            flex-shrink: 0;
+            z-index: 5;
         }
 
         .circles-panel.show {
@@ -1214,7 +1218,8 @@
         function updateCirclesPanel() {
             elements.circleCount.textContent = `(${circles.length})`;
 
-            if (circles.length === 0) {
+            // Only show circles panel when there are 2+ circles
+            if (circles.length < 2) {
                 elements.circlesPanel.classList.remove('show');
                 elements.circlesItems.innerHTML = '';
                 return;
