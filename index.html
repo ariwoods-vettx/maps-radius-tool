@@ -327,12 +327,9 @@
         .summary-bar {
             background: linear-gradient(135deg, var(--vettx-navy) 0%, #1a2744 100%);
             color: white;
-            padding: 10px 20px;
             display: none;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
             flex-shrink: 0;
-            cursor: pointer;
             transition: background 0.2s;
         }
 
@@ -340,31 +337,108 @@
             display: flex;
         }
 
-        .summary-bar:hover {
-            background: linear-gradient(135deg, #1a2744 0%, #232d42 100%);
+        .summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        .summary-header:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .summary-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .summary-circle-count {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .summary-expand-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .summary-expand-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .summary-expand-btn svg {
+            width: 12px;
+            height: 12px;
+            transition: transform 0.2s;
+        }
+
+        .summary-bar.expanded .summary-expand-btn svg {
+            transform: rotate(180deg);
+        }
+
+        .summary-details {
+            display: none;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.15);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .summary-bar.expanded .summary-details {
+            display: block;
         }
 
         .summary-stats {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            font-size: 0.875rem;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
         }
 
         .summary-stat {
             display: flex;
-            align-items: center;
-            gap: 6px;
+            flex-direction: column;
+            gap: 2px;
         }
 
         .summary-stat-value {
             font-weight: 600;
+            font-size: 1.1rem;
             color: var(--vettx-accent);
         }
 
         .summary-stat-label {
             opacity: 0.7;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-manage {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             font-size: 0.75rem;
+            opacity: 0.8;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .summary-manage:hover {
+            opacity: 1;
+            background: rgba(255,255,255,0.1);
         }
 
         .summary-toggle {
@@ -779,25 +853,50 @@
         </div>
         <!-- Summary Bar -->
         <div class="summary-bar" id="summaryBar">
-            <div class="summary-stats" id="summaryStats">
-                <div class="summary-stat">
-                    <span class="summary-stat-value" id="summaryCircles">0</span>
-                    <span class="summary-stat-label">circles</span>
+            <div class="summary-header">
+                <div class="summary-header-left">
+                    <span class="summary-circle-count" id="summaryCircleCount">0 circles</span>
+                    <button class="summary-expand-btn" id="summaryExpandBtn">
+                        <span id="summaryExpandText">Show Details</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
                 </div>
-                <div class="summary-stat">
-                    <span class="summary-stat-value" id="summaryListings">~0</span>
-                    <span class="summary-stat-label">listings/mo</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-stat-value" id="summaryPopulation">0</span>
-                    <span class="summary-stat-label">population</span>
+                <div class="summary-manage" id="summaryToggle">
+                    <span>Manage Circles</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
                 </div>
             </div>
-            <div class="summary-toggle" id="summaryToggle">
-                <span>Manage Circles</span>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
+            <div class="summary-details" id="summaryDetails">
+                <div class="summary-stats">
+                    <div class="summary-stat">
+                        <span class="summary-stat-value" id="summaryListings">~0</span>
+                        <span class="summary-stat-label">Est. Listings/Mo</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-stat-value" id="summaryPopulation">0</span>
+                        <span class="summary-stat-label">Total Population</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-stat-value" id="summaryArea">0</span>
+                        <span class="summary-stat-label">Total Area (mi²)</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-stat-value" id="summaryCounties">0</span>
+                        <span class="summary-stat-label">Counties Covered</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-stat-value" id="summaryStates">0</span>
+                        <span class="summary-stat-label">States Covered</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-stat-value" id="summaryDensity">0</span>
+                        <span class="summary-stat-label">Avg Density/mi²</span>
+                    </div>
+                </div>
             </div>
         </div>
         <div id="map"></div>
@@ -1007,9 +1106,15 @@
             elements.exportBtn = document.getElementById('exportBtn');
             // Summary bar elements
             elements.summaryBar = document.getElementById('summaryBar');
-            elements.summaryCircles = document.getElementById('summaryCircles');
+            elements.summaryCircleCount = document.getElementById('summaryCircleCount');
+            elements.summaryExpandBtn = document.getElementById('summaryExpandBtn');
+            elements.summaryExpandText = document.getElementById('summaryExpandText');
             elements.summaryListings = document.getElementById('summaryListings');
             elements.summaryPopulation = document.getElementById('summaryPopulation');
+            elements.summaryArea = document.getElementById('summaryArea');
+            elements.summaryCounties = document.getElementById('summaryCounties');
+            elements.summaryStates = document.getElementById('summaryStates');
+            elements.summaryDensity = document.getElementById('summaryDensity');
             elements.summaryToggle = document.getElementById('summaryToggle');
             // Drawer elements
             elements.circlesDrawer = document.getElementById('circlesDrawer');
@@ -1023,11 +1128,18 @@
         }
 
         let drawerOpen = false;
+        let summaryExpanded = false;
 
         function toggleDrawer() {
             drawerOpen = !drawerOpen;
             elements.circlesDrawer.classList.toggle('open', drawerOpen);
             elements.drawerToggle.classList.toggle('open', drawerOpen);
+        }
+
+        function toggleSummaryExpand() {
+            summaryExpanded = !summaryExpanded;
+            elements.summaryBar.classList.toggle('expanded', summaryExpanded);
+            elements.summaryExpandText.textContent = summaryExpanded ? 'Hide Details' : 'Show Details';
         }
 
         function openDrawer() {
@@ -1073,7 +1185,8 @@
             // Drawer event listeners
             elements.drawerToggle.addEventListener('click', toggleDrawer);
             elements.drawerClose.addEventListener('click', closeDrawer);
-            elements.summaryBar.addEventListener('click', toggleDrawer);
+            elements.summaryToggle.addEventListener('click', toggleDrawer);
+            elements.summaryExpandBtn.addEventListener('click', toggleSummaryExpand);
             elements.clearAllBtn.addEventListener('click', clearAllCircles);
 
             // Autocomplete
@@ -1315,17 +1428,37 @@
             // Calculate totals for summary bar
             let totalPopulation = 0;
             let totalListings = 0;
+            let totalArea = 0;
+            const allCounties = new Set();
+            const allStates = new Set();
+
             circles.forEach(cd => {
+                // Calculate area for each circle
+                totalArea += Math.PI * cd.radius * cd.radius;
+
                 if (cd.censusData && !cd.censusData.error) {
                     totalPopulation += cd.censusData.totalPopulation;
                     totalListings += Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION);
+
+                    // Track unique counties and states
+                    cd.censusData.countiesInRadius.forEach(county => {
+                        allCounties.add(`${county.n}, ${county.s}`);
+                        allStates.add(county.s);
+                    });
                 }
             });
 
-            // Update summary bar
-            elements.summaryCircles.textContent = circles.length;
+            const avgDensity = totalArea > 0 ? Math.round(totalPopulation / totalArea) : 0;
+
+            // Update summary bar with proper pluralization
+            const circleLabel = circles.length === 1 ? 'circle' : 'circles';
+            elements.summaryCircleCount.textContent = `${circles.length} ${circleLabel}`;
             elements.summaryListings.textContent = `~${formatNumber(totalListings)}`;
             elements.summaryPopulation.textContent = formatNumber(totalPopulation);
+            elements.summaryArea.textContent = formatNumber(Math.round(totalArea));
+            elements.summaryCounties.textContent = allCounties.size;
+            elements.summaryStates.textContent = allStates.size;
+            elements.summaryDensity.textContent = formatNumber(avgDensity);
 
             // Show/hide summary bar and drawer toggle based on circles
             if (circles.length === 0) {
