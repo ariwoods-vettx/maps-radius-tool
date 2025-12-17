@@ -997,6 +997,57 @@
             return unit === 'miles' ? meters / METERS_PER_MILE : meters / METERS_PER_KM;
         }
 
+        // Calculate distance between two lat/lng points in miles (Haversine formula)
+        function getDistanceBetweenPoints(lat1, lng1, lat2, lng2) {
+            const R = 3959; // Earth's radius in miles
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Get circles that should be counted for totals (excluding smaller circles contained in larger ones)
+        function getEffectiveCircles() {
+            if (circles.length <= 1) return circles;
+
+            // Sort circles by radius (largest first)
+            const sortedCircles = [...circles].sort((a, b) => b.radius - a.radius);
+            const effectiveCircles = [];
+            const excludedIds = new Set();
+
+            for (const circle of sortedCircles) {
+                if (excludedIds.has(circle.id)) continue;
+
+                effectiveCircles.push(circle);
+
+                // Check if any smaller circles are contained within this one
+                const center1 = circle.circle.getCenter();
+                const lat1 = center1.lat();
+                const lng1 = center1.lng();
+
+                for (const otherCircle of sortedCircles) {
+                    if (otherCircle.id === circle.id || excludedIds.has(otherCircle.id)) continue;
+                    if (otherCircle.radius >= circle.radius) continue; // Only check smaller circles
+
+                    const center2 = otherCircle.circle.getCenter();
+                    const lat2 = center2.lat();
+                    const lng2 = center2.lng();
+
+                    const distance = getDistanceBetweenPoints(lat1, lng1, lat2, lng2);
+
+                    // If smaller circle's center is within the larger circle, exclude it
+                    if (distance < circle.radius) {
+                        excludedIds.add(otherCircle.id);
+                    }
+                }
+            }
+
+            return effectiveCircles;
+        }
+
         // Animate circle radius expansion
         function animateCircleRadius(startRadius, endRadius, duration, onComplete) {
             const startTime = performance.now();
@@ -1425,15 +1476,16 @@
             elements.circleCount.textContent = `(${circles.length})`;
             elements.drawerBadge.textContent = circles.length;
 
-            // Calculate totals for summary bar
+            // Calculate totals for summary bar (using effective circles to avoid double-counting overlaps)
+            const effectiveCircles = getEffectiveCircles();
             let totalPopulation = 0;
             let totalListings = 0;
             let totalArea = 0;
             const allCounties = new Set();
             const allStates = new Set();
 
-            circles.forEach(cd => {
-                // Calculate area for each circle
+            effectiveCircles.forEach(cd => {
+                // Calculate area for each effective circle
                 totalArea += Math.PI * cd.radius * cd.radius;
 
                 if (cd.censusData && !cd.censusData.error) {
@@ -1449,6 +1501,7 @@
             });
 
             const avgDensity = totalArea > 0 ? Math.round(totalPopulation / totalArea) : 0;
+            const overlappingCount = circles.length - effectiveCircles.length;
 
             // Update summary bar with proper pluralization
             const circleLabel = circles.length === 1 ? 'circle' : 'circles';
@@ -1813,13 +1866,14 @@
                     scale: 2
                 });
 
-                // Calculate combined stats from all circles
+                // Calculate combined stats from effective circles (excluding overlapping smaller circles)
+                const effectiveCircles = getEffectiveCircles();
                 let totalPopulation = 0;
                 let totalListings = 0;
                 let allCounties = new Set();
                 let allStates = new Set();
 
-                circles.forEach(cd => {
+                effectiveCircles.forEach(cd => {
                     if (cd.censusData && !cd.censusData.error) {
                         totalPopulation += cd.censusData.totalPopulation;
                         totalListings += Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION);
