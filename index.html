@@ -482,6 +482,159 @@
             height: 16px;
         }
 
+        /* Circles List Panel */
+        .circles-panel {
+            background: white;
+            border-bottom: 1px solid var(--vettx-border);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .circles-panel.show {
+            display: block;
+        }
+
+        .circles-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--vettx-border);
+            background: var(--vettx-bg);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .circles-panel-header h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--vettx-navy);
+            margin: 0;
+        }
+
+        .circles-panel-header .circle-count {
+            color: var(--vettx-text-light);
+            font-weight: 400;
+        }
+
+        .btn--clear-all {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .btn--clear-all:hover {
+            background: #b91c1c;
+        }
+
+        .circles-items {
+            padding: 10px 20px;
+        }
+
+        .circle-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--vettx-bg);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .circle-card:hover {
+            border-color: var(--vettx-border);
+        }
+
+        .circle-card.active {
+            border-color: var(--vettx-accent);
+            background: rgba(0, 158, 247, 0.05);
+        }
+
+        .circle-card-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .circle-card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .circle-card-address {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--vettx-navy);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .circle-card-stats {
+            font-size: 0.75rem;
+            color: var(--vettx-text-light);
+            display: flex;
+            gap: 8px;
+        }
+
+        .circle-card-stats span {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .circle-card-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .circle-card-radius {
+            width: 60px;
+            padding: 4px 6px;
+            border: 1px solid var(--vettx-border);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-align: center;
+        }
+
+        .circle-card-delete {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            background: none;
+            border: none;
+            color: var(--vettx-text-light);
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .circle-card-delete:hover {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .circle-card-delete svg {
+            width: 16px;
+            height: 16px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 height: auto;
@@ -545,7 +698,7 @@
                         <input type="color" id="color" value="#0f172a">
                     </div>
                 </div>
-                <button class="btn" id="searchBtn">Draw Circle</button>
+                <button class="btn" id="searchBtn">Add Circle</button>
                 <button class="btn btn--export" id="exportBtn">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -568,7 +721,16 @@
                 </div>
             </div>
             <div class="error-message" id="error"></div>
-            <p class="info-text">Enter an address and click "Draw Circle" to visualize a radius area on the map. (US addresses show population estimates)</p>
+            <p class="info-text">Enter an address and click "Add Circle" to add a market area. Add multiple circles to compare regions.</p>
+        </div>
+        <div class="circles-panel" id="circlesPanel">
+            <div class="circles-panel-header">
+                <h3>Circles <span class="circle-count" id="circleCount">(0)</span></h3>
+                <button class="btn--clear-all" id="clearAllBtn">Clear All</button>
+            </div>
+            <div class="circles-items" id="circlesItems">
+                <!-- Circle cards will be inserted here -->
+            </div>
         </div>
         <div class="population-panel" id="populationPanel">
             <div class="population-header" id="populationHeader">
@@ -610,12 +772,14 @@
 
         // Global state
         let map;
-        let circle;
-        let marker;
         let geocoder;
-        let censusData = null;
-        let populationUpdateTimeout = null;
         let allCounties = null; // Pre-loaded county data
+
+        // Multiple circles support
+        let circles = []; // Array of circle objects: { id, circle, marker, radius, color, address, censusData }
+        let activeCircleId = null; // Currently selected circle
+        let nextCircleId = 1;
+        let populationUpdateTimeout = null;
 
         // Haversine formula to calculate distance between two lat/lng points in miles
         function haversineDistance(lat1, lng1, lat2, lng2) {
@@ -773,6 +937,11 @@
             elements.populationHeaderValue = document.getElementById('populationHeaderValue');
             elements.populationContent = document.getElementById('populationContent');
             elements.exportBtn = document.getElementById('exportBtn');
+            // Circles panel elements
+            elements.circlesPanel = document.getElementById('circlesPanel');
+            elements.circlesItems = document.getElementById('circlesItems');
+            elements.circleCount = document.getElementById('circleCount');
+            elements.clearAllBtn = document.getElementById('clearAllBtn');
         }
 
         function togglePopulationPanel() {
@@ -808,6 +977,7 @@
             elements.color.addEventListener('input', handleColorChange);
             elements.exportBtn.addEventListener('click', exportToPDF);
             elements.populationHeader.addEventListener('click', togglePopulationPanel);
+            elements.clearAllBtn.addEventListener('click', clearAllCircles);
 
             // Autocomplete
             const autocomplete = new window.AutocompleteClass(
@@ -817,7 +987,10 @@
 
             autocomplete.addListener('place_changed', () => {
                 const place = autocomplete.getPlace();
-                if (place.geometry) placeMarkerAndCircle(place.geometry.location);
+                if (place.geometry) {
+                    const address = place.formatted_address || place.name || elements.address.value;
+                    addCircle(place.geometry.location, address);
+                }
             });
 
             loadFromUrl();
@@ -837,7 +1010,9 @@
                 setSearchButtonState(false);
 
                 if (status === 'OK' && results[0]) {
-                    placeMarkerAndCircle(results[0].geometry.location);
+                    const formattedAddress = results[0].formatted_address || address;
+                    addCircle(results[0].geometry.location, formattedAddress);
+                    elements.address.value = ''; // Clear input for next circle
                 } else {
                     showError('Address not found. Please try a different address.');
                 }
@@ -846,27 +1021,22 @@
 
         function setSearchButtonState(isSearching) {
             elements.searchBtn.disabled = isSearching;
-            elements.searchBtn.textContent = isSearching ? 'Searching...' : 'Draw Circle';
+            elements.searchBtn.textContent = isSearching ? 'Searching...' : 'Add Circle';
         }
 
-        function placeMarkerAndCircle(location) {
-            if (marker) marker.map = null;
-            if (circle) circle.setMap(null);
-            censusData = null;
-            elements.exportBtn.classList.remove('show');
-
-            marker = new window.AdvancedMarkerElement({
-                position: location,
-                map: map
-            });
-
-            const radiusValue = parseFloat(elements.radiusInput.value) || 5;
+        function addCircle(location, address) {
+            const id = nextCircleId++;
+            const radiusValue = parseFloat(elements.radiusInput.value) || 25;
             const unit = elements.unit.value;
             const targetRadius = getRadiusInMeters(radiusValue, unit);
             const color = elements.color.value;
 
-            // Create circle with 0 radius for animation
-            circle = new google.maps.Circle({
+            const marker = new window.AdvancedMarkerElement({
+                position: location,
+                map: map
+            });
+
+            const circle = new google.maps.Circle({
                 strokeColor: color,
                 strokeOpacity: 0.8,
                 strokeWeight: 2,
@@ -879,30 +1049,262 @@
                 draggable: true
             });
 
+            // Create circle data object
+            const circleData = {
+                id,
+                circle,
+                marker,
+                radius: radiusValue,
+                color,
+                address: address || 'Unknown Location',
+                censusData: null
+            };
+
+            // Add to circles array
+            circles.push(circleData);
+
             // Animate circle expanding
-            animateCircleRadius(0, targetRadius, CIRCLE_ANIMATION_DURATION, () => {
-                map.fitBounds(circle.getBounds());
+            animateCircleRadiusForId(id, 0, targetRadius, CIRCLE_ANIMATION_DURATION, () => {
+                fitBoundsToAllCircles();
             });
 
-            fetchPopulationData(location.lat(), location.lng());
-            updateUrl();
+            // Fetch population data for this circle
+            fetchPopulationDataForCircle(id, location.lat(), location.lng());
 
+            // Set up event listeners for this circle
             circle.addListener('radius_changed', () => {
-                const displayRadius = getRadiusFromMeters(circle.getRadius(), elements.unit.value);
-                syncRadiusControls(displayRadius);
-                debouncedUpdatePopulation();
-                updateUrl();
+                const cd = circles.find(c => c.id === id);
+                if (cd) {
+                    cd.radius = Math.round(getRadiusFromMeters(circle.getRadius(), elements.unit.value));
+                    updateCircleCard(id);
+                    if (activeCircleId === id) {
+                        syncRadiusControls(cd.radius);
+                    }
+                    debouncedUpdatePopulationForCircle(id);
+                }
             });
 
             circle.addListener('center_changed', () => {
-                marker.position = circle.getCenter();
+                const cd = circles.find(c => c.id === id);
+                if (cd) {
+                    cd.marker.position = circle.getCenter();
+                }
             });
 
             circle.addListener('dragend', () => {
-                const center = circle.getCenter();
-                censusData = null;
-                fetchPopulationData(center.lat(), center.lng());
+                const cd = circles.find(c => c.id === id);
+                if (cd) {
+                    cd.censusData = null;
+                    const center = circle.getCenter();
+                    fetchPopulationDataForCircle(id, center.lat(), center.lng());
+                }
             });
+
+            circle.addListener('click', () => {
+                selectCircle(id);
+            });
+
+            // Update UI
+            updateCirclesPanel();
+            selectCircle(id);
+
+            // Show export button if we have circles
+            if (circles.length > 0) {
+                elements.exportBtn.classList.add('show');
+            }
+        }
+
+        function removeCircle(id) {
+            const index = circles.findIndex(c => c.id === id);
+            if (index === -1) return;
+
+            const circleData = circles[index];
+            circleData.circle.setMap(null);
+            circleData.marker.map = null;
+
+            circles.splice(index, 1);
+
+            // If we removed the active circle, select another one
+            if (activeCircleId === id) {
+                activeCircleId = circles.length > 0 ? circles[0].id : null;
+            }
+
+            updateCirclesPanel();
+            updatePopulationPanel();
+
+            // Hide export button if no circles
+            if (circles.length === 0) {
+                elements.exportBtn.classList.remove('show');
+                elements.populationPanel.classList.remove('show');
+            }
+        }
+
+        function clearAllCircles() {
+            circles.forEach(cd => {
+                cd.circle.setMap(null);
+                cd.marker.map = null;
+            });
+            circles = [];
+            activeCircleId = null;
+            updateCirclesPanel();
+            elements.populationPanel.classList.remove('show');
+            elements.exportBtn.classList.remove('show');
+        }
+
+        function selectCircle(id) {
+            activeCircleId = id;
+            const circleData = circles.find(c => c.id === id);
+
+            if (circleData) {
+                // Update controls to show this circle's values
+                elements.radiusInput.value = circleData.radius;
+                elements.radiusSlider.value = Math.min(circleData.radius, 500);
+                elements.color.value = circleData.color;
+
+                // Highlight selected circle (make others semi-transparent)
+                circles.forEach(cd => {
+                    const isActive = cd.id === id;
+                    cd.circle.setOptions({
+                        strokeOpacity: isActive ? 0.8 : 0.4,
+                        fillOpacity: isActive ? 0.2 : 0.1,
+                        strokeWeight: isActive ? 2 : 1
+                    });
+                });
+            }
+
+            updateCirclesPanel();
+            updatePopulationPanel();
+        }
+
+        function fitBoundsToAllCircles() {
+            if (circles.length === 0) return;
+
+            const bounds = new google.maps.LatLngBounds();
+            circles.forEach(cd => {
+                bounds.union(cd.circle.getBounds());
+            });
+            map.fitBounds(bounds);
+        }
+
+        function animateCircleRadiusForId(id, startRadius, endRadius, duration, onComplete) {
+            const startTime = performance.now();
+            const circleData = circles.find(c => c.id === id);
+            if (!circleData) return;
+
+            function update(currentTime) {
+                const cd = circles.find(c => c.id === id);
+                if (!cd) return;
+
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const currentRadius = startRadius + (endRadius - startRadius) * easeOut;
+
+                cd.circle.setRadius(currentRadius);
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else if (onComplete) {
+                    onComplete();
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
+        function updateCirclesPanel() {
+            elements.circleCount.textContent = `(${circles.length})`;
+
+            if (circles.length === 0) {
+                elements.circlesPanel.classList.remove('show');
+                elements.circlesItems.innerHTML = '';
+                return;
+            }
+
+            elements.circlesPanel.classList.add('show');
+
+            elements.circlesItems.innerHTML = circles.map(cd => {
+                const listings = cd.censusData ? Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION) : '--';
+                const population = cd.censusData ? formatNumber(cd.censusData.totalPopulation) : '--';
+                const isActive = cd.id === activeCircleId;
+
+                return `
+                    <div class="circle-card ${isActive ? 'active' : ''}" data-id="${cd.id}" onclick="selectCircle(${cd.id})">
+                        <div class="circle-card-color" style="background-color: ${cd.color}"></div>
+                        <div class="circle-card-info">
+                            <div class="circle-card-address">${cd.address}</div>
+                            <div class="circle-card-stats">
+                                <span>~${listings} listings/mo</span>
+                                <span>Pop: ${population}</span>
+                            </div>
+                        </div>
+                        <div class="circle-card-controls">
+                            <input type="number" class="circle-card-radius" value="${cd.radius}" min="1" max="500"
+                                onclick="event.stopPropagation()"
+                                onchange="updateCircleRadius(${cd.id}, this.value)">
+                            <span style="font-size: 0.75rem; color: var(--vettx-text-light)">mi</span>
+                            <button class="circle-card-delete" onclick="event.stopPropagation(); removeCircle(${cd.id})" title="Remove circle">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateCircleCard(id) {
+            const card = document.querySelector(`.circle-card[data-id="${id}"]`);
+            if (!card) return;
+
+            const cd = circles.find(c => c.id === id);
+            if (!cd) return;
+
+            const listings = cd.censusData ? Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION) : '--';
+            const population = cd.censusData ? formatNumber(cd.censusData.totalPopulation) : '--';
+
+            const statsEl = card.querySelector('.circle-card-stats');
+            if (statsEl) {
+                statsEl.innerHTML = `
+                    <span>~${listings} listings/mo</span>
+                    <span>Pop: ${population}</span>
+                `;
+            }
+
+            const radiusInput = card.querySelector('.circle-card-radius');
+            if (radiusInput && document.activeElement !== radiusInput) {
+                radiusInput.value = cd.radius;
+            }
+        }
+
+        function updateCircleRadius(id, newRadius) {
+            const cd = circles.find(c => c.id === id);
+            if (!cd) return;
+
+            newRadius = parseInt(newRadius) || 25;
+            cd.radius = newRadius;
+
+            const radiusInMeters = getRadiusInMeters(newRadius, elements.unit.value);
+            cd.circle.setRadius(radiusInMeters);
+
+            if (activeCircleId === id) {
+                syncRadiusControls(newRadius);
+            }
+
+            // Recalculate population
+            const center = cd.circle.getCenter();
+            fetchPopulationDataForCircle(id, center.lat(), center.lng());
+        }
+
+        function debouncedUpdatePopulationForCircle(id) {
+            if (populationUpdateTimeout) clearTimeout(populationUpdateTimeout);
+            populationUpdateTimeout = setTimeout(() => {
+                const cd = circles.find(c => c.id === id);
+                if (cd) {
+                    const center = cd.circle.getCenter();
+                    fetchPopulationDataForCircle(id, center.lat(), center.lng());
+                }
+            }, DEBOUNCE_DELAY);
         }
 
         function syncRadiusControls(value) {
@@ -911,6 +1313,8 @@
         }
 
         function handleRadiusChange(e) {
+            if (!activeCircleId) return;
+
             const isSlider = e.target.id === 'radiusSlider';
             const radiusValue = parseFloat(e.target.value) || 1;
 
@@ -920,35 +1324,58 @@
                 elements.radiusSlider.value = Math.min(radiusValue, parseFloat(elements.radiusSlider.max));
             }
 
-            updateCircle(radiusValue);
-            debouncedUpdatePopulation();
-            updateUrl();
+            updateActiveCircleRadius(radiusValue);
         }
 
         function handleUnitChange() {
             elements.unitDisplay.textContent = elements.unit.value;
-            const radiusValue = parseFloat(elements.radiusInput.value) || 5;
-            updateCircle(radiusValue);
-            debouncedUpdatePopulation();
-            updateUrl();
+            // Update all circles when unit changes
+            circles.forEach(cd => {
+                const radiusInMeters = getRadiusInMeters(cd.radius, elements.unit.value);
+                cd.circle.setRadius(radiusInMeters);
+            });
+            fitBoundsToAllCircles();
         }
 
         function handleColorChange() {
-            const color = elements.color.value;
-            if (circle) {
-                circle.setOptions({ strokeColor: color, fillColor: color });
+            if (!activeCircleId) return;
+
+            const cd = circles.find(c => c.id === activeCircleId);
+            if (cd) {
+                const color = elements.color.value;
+                cd.color = color;
+                cd.circle.setOptions({ strokeColor: color, fillColor: color });
+                updateCirclesPanel();
             }
-            updateUrl();
         }
 
-        function updateCircle(radiusValue) {
-            if (!circle) return;
-            const radiusInMeters = getRadiusInMeters(radiusValue, elements.unit.value);
-            circle.setRadius(radiusInMeters);
-            map.fitBounds(circle.getBounds());
+        function updateActiveCircleRadius(radiusValue) {
+            if (!activeCircleId) return;
+
+            const cd = circles.find(c => c.id === activeCircleId);
+            if (cd) {
+                cd.radius = Math.round(radiusValue);
+                const radiusInMeters = getRadiusInMeters(radiusValue, elements.unit.value);
+                cd.circle.setRadius(radiusInMeters);
+                updateCircleCard(activeCircleId);
+                debouncedUpdatePopulationForCircle(activeCircleId);
+            }
         }
 
+        // Legacy function - keep for compatibility
         function debouncedUpdatePopulation() {
+            if (activeCircleId) {
+                debouncedUpdatePopulationForCircle(activeCircleId);
+            }
+        }
+
+        // Remove old unused functions
+        function updateCircle(radiusValue) {
+            // Deprecated - use updateActiveCircleRadius instead
+            updateActiveCircleRadius(radiusValue);
+        }
+
+        function oldDebouncedUpdatePopulation() {
             if (populationUpdateTimeout) clearTimeout(populationUpdateTimeout);
             populationUpdateTimeout = setTimeout(() => {
                 if (censusData) updatePopulationDisplay();
@@ -990,9 +1417,9 @@
         // Square meters to square miles conversion
         const SQ_METERS_TO_SQ_MILES = 3.861e-7;
 
-        async function fetchPopulationData(lat, lng) {
-            elements.populationPanel.classList.add('show');
-            elements.populationContent.innerHTML = '<div class="population-loading"><div class="spinner"></div><span>Calculating listings...</span></div>';
+        async function fetchPopulationDataForCircle(circleId, lat, lng) {
+            const cd = circles.find(c => c.id === circleId);
+            if (!cd) return;
 
             try {
                 // Check if we have county data loaded
@@ -1001,79 +1428,94 @@
                     throw new Error('County data not loaded. Please refresh the page.');
                 }
 
-                // Get the radius in miles - use input value since circle might be animating from 0
+                // Get the radius in miles for this specific circle
+                let radiusMiles = cd.radius;
                 const unit = elements.unit.value;
-                let radiusMiles = parseFloat(elements.radiusInput.value);
                 if (unit === 'km') {
                     radiusMiles = radiusMiles * 0.621371; // Convert km to miles
                 }
 
-                console.log(`Searching for counties within ${radiusMiles} miles of (${lat}, ${lng})`);
+                console.log(`Circle ${circleId}: Searching for counties within ${radiusMiles} miles of (${lat}, ${lng})`);
 
                 // Find all counties within the radius using pre-loaded data
                 const countiesInRadius = findCountiesInRadius(lat, lng, radiusMiles);
 
-                console.log(`Found ${countiesInRadius.length} counties`);
+                console.log(`Circle ${circleId}: Found ${countiesInRadius.length} counties`);
 
                 if (countiesInRadius.length === 0) {
                     // Check if location is in US by finding nearest county
                     const nearest = allCounties
                         .map(c => ({ ...c, dist: haversineDistance(lat, lng, c.lat, c.lng) }))
                         .sort((a, b) => a.dist - b.dist)[0];
-                    console.log('Nearest county:', nearest?.n, nearest?.s, 'at', nearest?.dist?.toFixed(1), 'miles');
 
-                    if (nearest && nearest.dist > 500) {
-                        throw new Error('Location appears to be outside the United States.');
-                    } else {
-                        throw new Error(`No counties found. Nearest: ${nearest?.n}, ${nearest?.s} (${nearest?.dist?.toFixed(0)} mi away). Try a larger radius.`);
-                    }
+                    cd.censusData = {
+                        error: true,
+                        message: nearest && nearest.dist > 500
+                            ? 'Location appears to be outside the United States.'
+                            : `No counties found. Nearest: ${nearest?.n}, ${nearest?.s} (${nearest?.dist?.toFixed(0)} mi away). Try a larger radius.`
+                    };
+                } else {
+                    // Calculate total population from all counties in radius
+                    const totalPopulation = countiesInRadius.reduce((sum, county) => sum + county.p, 0);
+
+                    // Group counties by state for display
+                    const stateGroups = {};
+                    countiesInRadius.forEach(county => {
+                        if (!stateGroups[county.s]) {
+                            stateGroups[county.s] = [];
+                        }
+                        stateGroups[county.s].push(county);
+                    });
+
+                    cd.censusData = {
+                        centerLat: lat,
+                        centerLng: lng,
+                        totalPopulation,
+                        countiesInRadius,
+                        countyCount: countiesInRadius.length,
+                        stateGroups,
+                        stateCount: Object.keys(stateGroups).length
+                    };
                 }
 
-                // Calculate total population from all counties in radius
-                const totalPopulation = countiesInRadius.reduce((sum, county) => sum + county.p, 0);
-
-                // Group counties by state for display
-                const stateGroups = {};
-                countiesInRadius.forEach(county => {
-                    if (!stateGroups[county.s]) {
-                        stateGroups[county.s] = [];
-                    }
-                    stateGroups[county.s].push(county);
-                });
-
-                censusData = {
-                    centerLat: lat,
-                    centerLng: lng,
-                    totalPopulation,
-                    countiesInRadius,
-                    countyCount: countiesInRadius.length,
-                    stateGroups,
-                    stateCount: Object.keys(stateGroups).length
-                };
-
-                updatePopulationDisplay();
+                // Update UI
+                updateCircleCard(circleId);
+                updateCirclesPanel();
+                if (activeCircleId === circleId) {
+                    updatePopulationPanel();
+                }
 
             } catch (error) {
                 console.error('Population calculation error:', error);
-                elements.populationContent.innerHTML = `<div class="population-error">${error.message || 'Unable to calculate population. This feature is only available for US locations.'}</div>`;
+                cd.censusData = { error: true, message: error.message };
+                updateCircleCard(circleId);
             }
         }
 
-        function updatePopulationDisplay() {
-            if (!censusData || !circle) return;
+        function updatePopulationPanel() {
+            if (circles.length === 0) {
+                elements.populationPanel.classList.remove('show');
+                return;
+            }
 
-            const radiusMiles = circle.getRadius() / METERS_PER_MILE;
+            elements.populationPanel.classList.add('show');
+
+            // Find active circle
+            const activeCircle = circles.find(c => c.id === activeCircleId);
+
+            if (!activeCircle || !activeCircle.censusData || activeCircle.censusData.error) {
+                const errorMsg = activeCircle?.censusData?.message || 'Select a circle to see details';
+                elements.populationHeaderValue.textContent = '--';
+                elements.populationContent.innerHTML = `<div class="population-error">${errorMsg}</div>`;
+                return;
+            }
+
+            const cd = activeCircle;
+            const censusData = cd.censusData;
+            const radiusMiles = cd.radius;
             const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
-
-            // Recalculate counties in radius with current radius
-            const center = circle.getCenter();
-            const countiesInRadius = findCountiesInRadius(center.lat(), center.lng(), radiusMiles);
-            const totalPopulation = countiesInRadius.reduce((sum, county) => sum + county.p, 0);
-
-            // Update censusData with new calculations
-            censusData.countiesInRadius = countiesInRadius;
-            censusData.countyCount = countiesInRadius.length;
-            censusData.totalPopulation = totalPopulation;
+            const totalPopulation = censusData.totalPopulation;
+            const countiesInRadius = censusData.countiesInRadius;
 
             const privatePartyListings = Math.round((totalPopulation / 1000000) * LISTINGS_PER_MILLION);
             const emoji = getListingsEmoji(privatePartyListings);
@@ -1119,12 +1561,12 @@
                         Avg Density
                     </div>
                     <div class="population-detail">
-                        <strong>${radiusMiles.toFixed(1)} mi</strong>
+                        <strong>${radiusMiles} mi</strong>
                         Radius
                     </div>
                 </div>
                 <div class="population-note">* Top counties: ${topCounties}${countiesInRadius.length > 5 ? ` (+${countiesInRadius.length - 5} more)` : ''}</div>
-                <div class="population-note" style="margin-top: 4px;">Population based on 2020 Census. Counties included if center falls within radius.</div>
+                <div class="population-note" style="margin-top: 4px;">Location: ${cd.address}</div>
             `;
 
             const counterEl = document.getElementById('listingsCounter');
@@ -1134,9 +1576,9 @@
             elements.exportBtn.classList.add('show');
         }
 
-        // PDF Export functionality
+        // PDF Export functionality - supports multiple circles
         async function exportToPDF() {
-            if (!censusData || !circle) return;
+            if (circles.length === 0) return;
 
             const btn = elements.exportBtn;
             const originalText = btn.innerHTML;
@@ -1154,18 +1596,23 @@
                     scale: 2
                 });
 
-                // Calculate dimensions
-                const radiusMiles = circle.getRadius() / METERS_PER_MILE;
-                const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
-                const center = circle.getCenter();
+                // Calculate combined stats from all circles
+                let totalPopulation = 0;
+                let totalListings = 0;
+                let allCounties = new Set();
+                let allStates = new Set();
 
-                // Recalculate counties for current radius
-                const countiesInRadius = findCountiesInRadius(center.lat(), center.lng(), radiusMiles);
-                const totalPopulation = countiesInRadius.reduce((sum, county) => sum + county.p, 0);
-                const privatePartyListings = Math.round((totalPopulation / 1000000) * LISTINGS_PER_MILLION);
-                const states = new Set(countiesInRadius.map(c => c.s));
+                circles.forEach(cd => {
+                    if (cd.censusData && !cd.censusData.error) {
+                        totalPopulation += cd.censusData.totalPopulation;
+                        totalListings += Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION);
+                        cd.censusData.countiesInRadius.forEach(c => {
+                            allCounties.add(c.f); // Use FIPS code as unique identifier
+                            allStates.add(c.s);
+                        });
+                    }
+                });
 
-                const radiusValue = parseFloat(elements.radiusInput.value);
                 const unit = elements.unit.value;
 
                 // Create PDF (landscape for better map display)
@@ -1199,63 +1646,66 @@
                 });
                 pdf.text(date, pageWidth - 40, 38, { align: 'right' });
 
-                // Location title
+                // Title - depends on number of circles
                 pdf.setTextColor(24, 29, 49); // vettx-dark-1
                 pdf.setFontSize(16);
                 pdf.setFont('helvetica', 'bold');
-                const address = elements.address.value || 'Selected Location';
-                pdf.text(address, 40, 85);
+                const title = circles.length === 1
+                    ? circles[0].address
+                    : `Market Analysis - ${circles.length} Areas`;
+                pdf.text(title, 40, 85);
 
                 // Subtitle
                 pdf.setFontSize(11);
                 pdf.setFont('helvetica', 'normal');
                 pdf.setTextColor(136, 143, 151); // vettx-dark-3
-                pdf.text(`${radiusValue} ${unit} radius | ${countiesInRadius.length} counties | ${states.size} state${states.size !== 1 ? 's' : ''}`, 40, 100);
+                const subtitle = circles.length === 1
+                    ? `${circles[0].radius} ${unit} radius | ${allCounties.size} counties | ${allStates.size} state${allStates.size !== 1 ? 's' : ''}`
+                    : `${circles.length} circles | ${allCounties.size} unique counties | ${allStates.size} state${allStates.size !== 1 ? 's' : ''}`;
+                pdf.text(subtitle, 40, 100);
 
                 // Map image - large, full width at top
                 const mapImgData = mapCanvas.toDataURL('image/png');
                 const canvasRatio = mapCanvas.width / mapCanvas.height;
                 const mapWidth = pageWidth - 80; // 40px margin each side
                 const mapHeight = mapWidth / canvasRatio;
-                const maxMapHeight = 280;
+                const maxMapHeight = circles.length > 1 ? 220 : 280; // Smaller map if multiple circles
                 const finalMapHeight = Math.min(mapHeight, maxMapHeight);
                 const finalMapWidth = finalMapHeight === maxMapHeight ? maxMapHeight * canvasRatio : mapWidth;
 
                 pdf.addImage(mapImgData, 'PNG', 40, 115, finalMapWidth, finalMapHeight);
 
                 // Stats section below map
-                const statsY = 115 + finalMapHeight + 20;
+                let statsY = 115 + finalMapHeight + 20;
 
-                // Main stat - Listings (left side, prominent)
+                // Main stat - Combined Listings (left side, prominent)
                 pdf.setFillColor(230, 247, 255); // light brand bg
                 pdf.roundedRect(40, statsY, 250, 70, 8, 8, 'F');
                 pdf.setFontSize(10);
                 pdf.setTextColor(136, 143, 151); // vettx-dark-3
-                pdf.text('ESTIMATED PRIVATE PARTY LISTINGS / MONTH', 55, statsY + 22);
+                pdf.text(circles.length > 1 ? 'COMBINED EST. LISTINGS / MONTH' : 'ESTIMATED PRIVATE PARTY LISTINGS / MONTH', 55, statsY + 22);
                 pdf.setFontSize(32);
                 pdf.setFont('helvetica', 'bold');
                 pdf.setTextColor(0, 158, 247); // vettx-brand #009EF7
-                pdf.text(`~${formatNumber(privatePartyListings)}`, 55, statsY + 52);
+                pdf.text(`~${formatNumber(totalListings)}`, 55, statsY + 52);
 
-                // Stats grid (right side, 2 columns)
+                // Stats grid (right side)
                 const stats = [
                     { label: 'Total Population', value: formatNumber(totalPopulation) },
-                    { label: 'Counties', value: formatNumber(countiesInRadius.length) },
-                    { label: 'States', value: states.size.toString() },
-                    { label: 'Circle Area', value: `${formatNumber(Math.round(circleAreaSqMiles))} sq mi` },
-                    { label: 'Avg Density', value: `${formatNumber(Math.round(totalPopulation / circleAreaSqMiles))}/sq mi` },
+                    { label: 'Counties', value: formatNumber(allCounties.size) },
+                    { label: 'States', value: allStates.size.toString() },
+                    { label: 'Market Areas', value: circles.length.toString() },
                 ];
 
                 const col1X = 310;
                 const col2X = 450;
-                const col3X = 590;
                 const statBoxWidth = 130;
 
                 pdf.setFont('helvetica', 'normal');
                 stats.forEach((stat, i) => {
-                    const col = i % 3;
-                    const row = Math.floor(i / 3);
-                    const x = col === 0 ? col1X : (col === 1 ? col2X : col3X);
+                    const col = i % 2;
+                    const row = Math.floor(i / 2);
+                    const x = col === 0 ? col1X : col2X;
                     const y = statsY + (row * 38);
 
                     pdf.setFillColor(246, 248, 250); // vettx-light-2
@@ -1270,15 +1720,67 @@
                     pdf.setFont('helvetica', 'normal');
                 });
 
+                // Per-circle breakdown (if multiple circles)
+                if (circles.length > 1) {
+                    statsY += 90;
+                    pdf.setFontSize(11);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(24, 29, 49);
+                    pdf.text('Per-Area Breakdown:', 40, statsY);
+                    statsY += 15;
+
+                    circles.forEach((cd, index) => {
+                        if (statsY > pageHeight - 60) return; // Don't overflow page
+
+                        const listings = cd.censusData && !cd.censusData.error
+                            ? Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION)
+                            : 0;
+                        const pop = cd.censusData && !cd.censusData.error
+                            ? formatNumber(cd.censusData.totalPopulation)
+                            : 'N/A';
+
+                        pdf.setFillColor(246, 248, 250);
+                        pdf.roundedRect(40, statsY, pageWidth - 80, 24, 4, 4, 'F');
+
+                        // Color indicator
+                        const colorHex = cd.color.replace('#', '');
+                        const r = parseInt(colorHex.substring(0, 2), 16);
+                        const g = parseInt(colorHex.substring(2, 4), 16);
+                        const b = parseInt(colorHex.substring(4, 6), 16);
+                        pdf.setFillColor(r, g, b);
+                        pdf.circle(55, statsY + 12, 6, 'F');
+
+                        pdf.setFontSize(9);
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(24, 29, 49);
+
+                        // Truncate address if too long
+                        let addr = cd.address;
+                        if (addr.length > 50) addr = addr.substring(0, 47) + '...';
+                        pdf.text(addr, 70, statsY + 15);
+
+                        pdf.setTextColor(136, 143, 151);
+                        pdf.text(`${cd.radius} ${unit}`, 400, statsY + 15);
+                        pdf.text(`Pop: ${pop}`, 480, statsY + 15);
+                        pdf.setTextColor(0, 158, 247);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.text(`~${formatNumber(listings)}/mo`, pageWidth - 120, statsY + 15);
+
+                        statsY += 28;
+                    });
+                }
+
                 // Footer
                 pdf.setFontSize(9);
+                pdf.setFont('helvetica', 'normal');
                 pdf.setTextColor(150, 150, 150);
-                const topCountiesPdf = [...countiesInRadius].sort((a, b) => b.p - a.p).slice(0, 3).map(c => c.n).join(', ');
-                pdf.text(`* Population from 2020 Census. Top counties: ${topCountiesPdf}${countiesInRadius.length > 3 ? ` (+${countiesInRadius.length - 3} more)` : ''}`, 40, pageHeight - 30);
+                pdf.text('* Population estimates from 2020 Census county data.', 40, pageHeight - 30);
                 pdf.text('Generated by VETTX Market Analysis | www.vettx.com', 40, pageHeight - 15);
 
                 // Save
-                const filename = `VETTX-Market-Report-${address.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 30)}.pdf`;
+                const filename = circles.length === 1
+                    ? `VETTX-Market-Report-${circles[0].address.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 30)}.pdf`
+                    : `VETTX-Market-Report-${circles.length}-Areas.pdf`;
                 pdf.save(filename);
 
             } catch (error) {
