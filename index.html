@@ -523,6 +523,7 @@
         const DEBOUNCE_DELAY = 300;
         const ANIMATION_DURATION = 800;
         const CIRCLE_ANIMATION_DURATION = 600;
+        const EARTH_RADIUS_MILES = 3959; // Earth's radius in miles
 
         // Cached DOM elements (initialized in initMap)
         const elements = {};
@@ -534,6 +535,41 @@
         let geocoder;
         let censusData = null;
         let populationUpdateTimeout = null;
+        let allCounties = null; // Pre-loaded county data
+
+        // Haversine formula to calculate distance between two lat/lng points in miles
+        function haversineDistance(lat1, lng1, lat2, lng2) {
+            const toRad = (deg) => deg * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return EARTH_RADIUS_MILES * c;
+        }
+
+        // Find all counties within a radius of a center point
+        function findCountiesInRadius(centerLat, centerLng, radiusMiles) {
+            if (!allCounties) return [];
+            return allCounties.filter(county => {
+                const distance = haversineDistance(centerLat, centerLng, county.lat, county.lng);
+                return distance <= radiusMiles;
+            }).map(county => ({
+                ...county,
+                distance: haversineDistance(centerLat, centerLng, county.lat, county.lng)
+            })).sort((a, b) => a.distance - b.distance);
+        }
+
+        // Load county data
+        async function loadCountyData() {
+            try {
+                const response = await fetch('counties.json');
+                allCounties = await response.json();
+                console.log(`Loaded ${allCounties.length} counties`);
+            } catch (error) {
+                console.error('Failed to load county data:', error);
+            }
+        }
 
         // Utility functions
         const formatNumber = (num) => num.toLocaleString();
@@ -872,59 +908,48 @@
             elements.populationContent.innerHTML = '<div class="population-loading"><div class="spinner"></div><span>Calculating listings...</span></div>';
 
             try {
-                const fccUrl = `https://geo.fcc.gov/api/census/block/find?latitude=${lat}&longitude=${lng}&format=json`;
-                const geoData = await fetchWithProxy(fccUrl);
-
-                if (!geoData.County?.FIPS || geoData.status === 'error') {
-                    throw new Error('Population estimates are only available for US addresses.');
+                // Check if we have county data loaded
+                if (!allCounties || allCounties.length === 0) {
+                    throw new Error('County data not loaded. Please refresh the page.');
                 }
 
-                const countyFips = geoData.County.FIPS.substring(2);
-                const stateFips = geoData.State.FIPS;
-                const countyName = geoData.County.name;
+                // Get the radius in miles
+                const radiusMiles = circle ? circle.getRadius() / METERS_PER_MILE : parseFloat(elements.radiusInput.value);
 
-                // Fetch population data
-                const censusUrl = `https://api.census.gov/data/2020/dec/pl?get=P1_001N&for=county:${countyFips}&in=state:${stateFips}`;
-                const popData = await fetchWithProxy(censusUrl);
+                // Find all counties within the radius using pre-loaded data
+                const countiesInRadius = findCountiesInRadius(lat, lng, radiusMiles);
 
-                if (!popData || popData.length < 2) {
-                    throw new Error('Could not retrieve population data');
+                if (countiesInRadius.length === 0) {
+                    throw new Error('No counties found within radius. This feature is only available for US locations.');
                 }
 
-                const countyPopulation = parseInt(popData[1][0]);
+                // Calculate total population from all counties in radius
+                const totalPopulation = countiesInRadius.reduce((sum, county) => sum + county.p, 0);
 
-                // Fetch actual land area from Census TIGERweb service
-                let landAreaSqMiles;
-                try {
-                    // Use TIGERweb for actual land area
-                    const tigerUrl = `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Census2020/MapServer/82/query?where=STATE='${stateFips}'+AND+COUNTY='${countyFips}'&outFields=AREALAND&f=json`;
-                    const tigerData = await fetchWithProxy(tigerUrl);
-
-                    if (tigerData?.features?.[0]?.attributes?.AREALAND) {
-                        // AREALAND is in square meters, convert to square miles
-                        landAreaSqMiles = tigerData.features[0].attributes.AREALAND * SQ_METERS_TO_SQ_MILES;
-                    } else {
-                        throw new Error('Land area not found');
+                // Group counties by state for display
+                const stateGroups = {};
+                countiesInRadius.forEach(county => {
+                    if (!stateGroups[county.s]) {
+                        stateGroups[county.s] = [];
                     }
-                } catch (areaError) {
-                    console.warn('Could not fetch land area, using fallback estimation:', areaError);
-                    // Fallback: Use US average county size (~1,000 sq mi) as a reasonable default
-                    // This is much more conservative than the old estimation
-                    landAreaSqMiles = 1000;
-                }
+                    stateGroups[county.s].push(county);
+                });
 
                 censusData = {
-                    countyName,
-                    countyPopulation,
-                    landAreaSqMiles,
-                    populationDensity: countyPopulation / landAreaSqMiles
+                    centerLat: lat,
+                    centerLng: lng,
+                    totalPopulation,
+                    countiesInRadius,
+                    countyCount: countiesInRadius.length,
+                    stateGroups,
+                    stateCount: Object.keys(stateGroups).length
                 };
 
                 updatePopulationDisplay();
 
             } catch (error) {
-                console.error('Census API error:', error);
-                elements.populationContent.innerHTML = `<div class="population-error">${error.message || 'Unable to fetch population data. This feature is only available for US locations.'}</div>`;
+                console.error('Population calculation error:', error);
+                elements.populationContent.innerHTML = `<div class="population-error">${error.message || 'Unable to calculate population. This feature is only available for US locations.'}</div>`;
             }
         }
 
@@ -933,10 +958,29 @@
 
             const radiusMiles = circle.getRadius() / METERS_PER_MILE;
             const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
-            const estimatedPopulation = Math.round(censusData.populationDensity * circleAreaSqMiles);
-            const privatePartyListings = Math.round((estimatedPopulation / 1000000) * LISTINGS_PER_MILLION);
-            const emoji = getListingsEmoji(privatePartyListings);
+
+            // Recalculate counties in radius with current radius
             const center = circle.getCenter();
+            const countiesInRadius = findCountiesInRadius(center.lat(), center.lng(), radiusMiles);
+            const totalPopulation = countiesInRadius.reduce((sum, county) => sum + county.p, 0);
+
+            // Update censusData with new calculations
+            censusData.countiesInRadius = countiesInRadius;
+            censusData.countyCount = countiesInRadius.length;
+            censusData.totalPopulation = totalPopulation;
+
+            const privatePartyListings = Math.round((totalPopulation / 1000000) * LISTINGS_PER_MILLION);
+            const emoji = getListingsEmoji(privatePartyListings);
+
+            // Get top 5 counties by population for display
+            const topCounties = [...countiesInRadius]
+                .sort((a, b) => b.p - a.p)
+                .slice(0, 5)
+                .map(c => `${c.n}, ${c.s.substring(0, 2).toUpperCase()}`)
+                .join(' · ');
+
+            // Count states
+            const states = new Set(countiesInRadius.map(c => c.s));
 
             elements.populationContent.innerHTML = `
                 <h2>Estimated Private Party Listings Per Month</h2>
@@ -946,31 +990,32 @@
                 </div>
                 <div class="population-details">
                     <div class="population-detail">
-                        <strong>~${formatNumber(estimatedPopulation)}</strong>
-                        Est. Population
+                        <strong>${formatNumber(totalPopulation)}</strong>
+                        Total Population
                     </div>
                     <div class="population-detail">
-                        <strong>${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi</strong>
-                        Circle Area
+                        <strong>${formatNumber(countiesInRadius.length)}</strong>
+                        Counties Included
                     </div>
                     <div class="population-detail">
-                        <strong>${center.lat().toFixed(6)}, ${center.lng().toFixed(6)}</strong>
-                        Center Coordinates
+                        <strong>${states.size}</strong>
+                        State${states.size !== 1 ? 's' : ''}
                     </div>
                     <div class="population-detail">
-                        <strong>${formatNumber(Math.round(censusData.populationDensity))}/sq mi</strong>
-                        ${censusData.countyName} County Density
+                        <strong>${formatNumber(Math.round(circleAreaSqMiles))}</strong>
+                        Circle Area (sq mi)
                     </div>
                     <div class="population-detail">
-                        <strong>${formatNumber(censusData.countyPopulation)}</strong>
-                        County Population
+                        <strong>${formatNumber(Math.round(totalPopulation / circleAreaSqMiles))}/sq mi</strong>
+                        Avg Density
                     </div>
                     <div class="population-detail">
-                        <strong>${formatNumber(Math.round(censusData.landAreaSqMiles))} sq mi</strong>
-                        County Land Area
+                        <strong>${radiusMiles.toFixed(1)} mi</strong>
+                        Radius
                     </div>
                 </div>
-                <div class="population-note">* Estimate based on ${censusData.countyName} County average density (2020 Census, actual land area)</div>
+                <div class="population-note">* Top counties: ${topCounties}${countiesInRadius.length > 5 ? ` (+${countiesInRadius.length - 5} more)` : ''}</div>
+                <div class="population-note" style="margin-top: 4px;">Population based on 2020 Census. Counties included if center falls within radius.</div>
             `;
 
             const counterEl = document.getElementById('listingsCounter');
@@ -1003,9 +1048,14 @@
                 // Calculate dimensions
                 const radiusMiles = circle.getRadius() / METERS_PER_MILE;
                 const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
-                const estimatedPopulation = Math.round(censusData.populationDensity * circleAreaSqMiles);
-                const privatePartyListings = Math.round((estimatedPopulation / 1000000) * LISTINGS_PER_MILLION);
                 const center = circle.getCenter();
+
+                // Recalculate counties for current radius
+                const countiesInRadius = findCountiesInRadius(center.lat(), center.lng(), radiusMiles);
+                const totalPopulation = countiesInRadius.reduce((sum, county) => sum + county.p, 0);
+                const privatePartyListings = Math.round((totalPopulation / 1000000) * LISTINGS_PER_MILLION);
+                const states = new Set(countiesInRadius.map(c => c.s));
+
                 const radiusValue = parseFloat(elements.radiusInput.value);
                 const unit = elements.unit.value;
 
@@ -1051,7 +1101,7 @@
                 pdf.setFontSize(11);
                 pdf.setFont('helvetica', 'normal');
                 pdf.setTextColor(136, 143, 151); // vettx-dark-3
-                pdf.text(`${radiusValue} ${unit} radius | ${censusData.countyName} County`, 40, 100);
+                pdf.text(`${radiusValue} ${unit} radius | ${countiesInRadius.length} counties | ${states.size} state${states.size !== 1 ? 's' : ''}`, 40, 100);
 
                 // Map image - large, full width at top
                 const mapImgData = mapCanvas.toDataURL('image/png');
@@ -1080,11 +1130,11 @@
 
                 // Stats grid (right side, 2 columns)
                 const stats = [
-                    { label: 'Est. Population', value: `~${formatNumber(estimatedPopulation)}` },
-                    { label: 'Circle Area', value: `${formatNumber(Math.round(circleAreaSqMiles * 100) / 100)} sq mi` },
-                    { label: 'County Density', value: `${formatNumber(Math.round(censusData.populationDensity))}/sq mi` },
-                    { label: 'County Population', value: formatNumber(censusData.countyPopulation) },
-                    { label: 'County Land Area', value: `${formatNumber(Math.round(censusData.landAreaSqMiles))} sq mi` },
+                    { label: 'Total Population', value: formatNumber(totalPopulation) },
+                    { label: 'Counties', value: formatNumber(countiesInRadius.length) },
+                    { label: 'States', value: states.size.toString() },
+                    { label: 'Circle Area', value: `${formatNumber(Math.round(circleAreaSqMiles))} sq mi` },
+                    { label: 'Avg Density', value: `${formatNumber(Math.round(totalPopulation / circleAreaSqMiles))}/sq mi` },
                 ];
 
                 const col1X = 310;
@@ -1114,7 +1164,8 @@
                 // Footer
                 pdf.setFontSize(9);
                 pdf.setTextColor(150, 150, 150);
-                pdf.text('* Population estimates based on 2020 Census data for ' + censusData.countyName + ' County', 40, pageHeight - 30);
+                const topCountiesPdf = [...countiesInRadius].sort((a, b) => b.p - a.p).slice(0, 3).map(c => c.n).join(', ');
+                pdf.text(`* Population from 2020 Census. Top counties: ${topCountiesPdf}${countiesInRadius.length > 3 ? ` (+${countiesInRadius.length - 3} more)` : ''}`, 40, pageHeight - 30);
                 pdf.text('Generated by VETTX Market Analysis | www.vettx.com', 40, pageHeight - 15);
 
                 // Save
@@ -1148,18 +1199,22 @@
 
         // Initialize map after libraries are loaded
         async function init() {
+            // Load county data in parallel with Google Maps
+            const countyDataPromise = loadCountyData();
+
             const { Map } = await google.maps.importLibrary("maps");
             const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
             const { Geocoder } = await google.maps.importLibrary("geocoding");
             const { Autocomplete } = await google.maps.importLibrary("places");
-            
+
             window.AdvancedMarkerElement = AdvancedMarkerElement;
             window.GeocoderClass = Geocoder;
             window.AutocompleteClass = Autocomplete;
-            
+
+            await countyDataPromise; // Ensure county data is loaded
             initMap();
         }
-        
+
         init();
     </script>
 </body>
