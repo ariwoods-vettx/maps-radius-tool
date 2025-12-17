@@ -287,169 +287,8 @@
             margin-top: 12px;
         }
 
-        .population-panel {
-            background: linear-gradient(135deg, var(--vettx-navy) 0%, #1a2744 100%);
-            color: white;
-            display: none;
-            position: relative;
-            overflow: hidden;
-            flex-shrink: 0;
-            z-index: 5;
-        }
-
-        .population-panel.show {
-            display: block;
-            animation: slideDown 0.3s ease;
-        }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .population-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 20px;
-            cursor: pointer;
-            user-select: none;
-            transition: background 0.2s;
-        }
-
-        .population-header:hover {
-            background: rgba(255,255,255,0.05);
-        }
-
-        .population-header-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .population-header h2 {
-            font-size: 0.75rem;
-            font-weight: 500;
-            opacity: 0.7;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .population-header-value {
-            font-size: 1.1rem;
-            font-weight: 700;
-        }
-
-        .population-toggle {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.75rem;
-            opacity: 0.6;
-        }
-
-        .population-toggle svg {
-            width: 16px;
-            height: 16px;
-            transition: transform 0.3s ease;
-        }
-
-        .population-panel.collapsed .population-toggle svg {
-            transform: rotate(180deg);
-        }
-
-        .population-body {
-            padding: 0 20px 16px 20px;
-            transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
-            max-height: 500px;
-            opacity: 1;
-            overflow: hidden;
-        }
-
-        .population-panel.collapsed .population-body {
-            max-height: 0;
-            padding-top: 0;
-            padding-bottom: 0;
-            opacity: 0;
-        }
-
-        .population-panel h2 {
-            font-size: 0.75rem;
-            font-weight: 500;
-            opacity: 0.7;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .population-value {
-            font-size: 1.75rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .population-emoji {
-            font-size: 1.5rem;
-            animation: bounce 0.5s ease;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-
-        .population-details {
-            display: flex;
-            gap: 24px;
-            margin-top: 12px;
-            flex-wrap: wrap;
-        }
-
-        .population-detail {
-            font-size: 0.75rem;
-            opacity: 0.7;
-        }
-
-        .population-detail strong {
-            display: block;
-            font-size: 0.9375rem;
-            font-weight: 600;
-            opacity: 1;
-        }
-
-        .population-loading {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .population-loading .spinner {
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255,255,255,0.2);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
         @keyframes spin {
             to { transform: rotate(360deg); }
-        }
-
-        .population-note {
-            font-size: 0.6875rem;
-            opacity: 0.5;
-            margin-top: 10px;
-        }
-
-        .population-error {
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 0.875rem;
         }
 
         /* Utility classes for form layout */
@@ -484,62 +323,217 @@
             height: 16px;
         }
 
-        /* Circles List Panel */
-        .circles-panel {
-            background: white;
-            border-bottom: 1px solid var(--vettx-border);
-            max-height: 200px;
-            overflow-y: auto;
+        /* Summary Bar */
+        .summary-bar {
+            background: linear-gradient(135deg, var(--vettx-navy) 0%, #1a2744 100%);
+            color: white;
+            padding: 10px 20px;
             display: none;
+            align-items: center;
+            justify-content: space-between;
             flex-shrink: 0;
-            z-index: 5;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
-        .circles-panel.show {
-            display: block;
+        .summary-bar.show {
+            display: flex;
         }
 
-        .circles-panel-header {
+        .summary-bar:hover {
+            background: linear-gradient(135deg, #1a2744 0%, #232d42 100%);
+        }
+
+        .summary-stats {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.875rem;
+        }
+
+        .summary-stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .summary-stat-value {
+            font-weight: 600;
+            color: var(--vettx-accent);
+        }
+
+        .summary-stat-label {
+            opacity: 0.7;
+            font-size: 0.75rem;
+        }
+
+        .summary-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+
+        .summary-toggle svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Circles Drawer */
+        .circles-drawer {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 320px;
+            background: white;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .circles-drawer.open {
+            transform: translateX(0);
+        }
+
+        .drawer-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 20px;
+            padding: 16px 20px;
             border-bottom: 1px solid var(--vettx-border);
             background: var(--vettx-bg);
-            position: sticky;
-            top: 0;
-            z-index: 1;
+            flex-shrink: 0;
         }
 
-        .circles-panel-header h3 {
-            font-size: 0.875rem;
+        .drawer-header h3 {
+            font-size: 1rem;
             font-weight: 600;
             color: var(--vettx-navy);
             margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .circles-panel-header .circle-count {
+        .drawer-header .circle-count {
             color: var(--vettx-text-light);
             font-weight: 400;
+            font-size: 0.875rem;
+        }
+
+        .drawer-close {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: none;
+            border: none;
+            color: var(--vettx-text-light);
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .drawer-close:hover {
+            background: var(--vettx-bg);
+            color: var(--vettx-navy);
+        }
+
+        .drawer-close svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .drawer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .drawer-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--vettx-border);
+            background: var(--vettx-bg);
+            flex-shrink: 0;
         }
 
         .btn--clear-all {
-            padding: 4px 10px;
-            font-size: 0.75rem;
-            background: #dc2626;
-            color: white;
-            border: none;
-            border-radius: 4px;
+            width: 100%;
+            padding: 8px 16px;
+            font-size: 0.8125rem;
+            background: white;
+            color: #dc2626;
+            border: 1px solid #dc2626;
+            border-radius: 6px;
             cursor: pointer;
             font-family: inherit;
+            font-weight: 500;
+            transition: all 0.2s;
         }
 
         .btn--clear-all:hover {
-            background: #b91c1c;
+            background: #dc2626;
+            color: white;
         }
 
-        .circles-items {
-            padding: 10px 20px;
+        /* Drawer Toggle Button */
+        .drawer-toggle {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 80px;
+            background: var(--vettx-navy);
+            border: none;
+            border-radius: 8px 0 0 8px;
+            color: white;
+            cursor: pointer;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            z-index: 999;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+
+        .drawer-toggle.show {
+            display: flex;
+        }
+
+        .drawer-toggle:hover {
+            width: 44px;
+            background: #1a2744;
+        }
+
+        .drawer-toggle svg {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.3s;
+        }
+
+        .drawer-toggle.open svg {
+            transform: rotate(180deg);
+        }
+
+        .drawer-toggle .circle-badge {
+            background: var(--vettx-accent);
+            color: white;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
         }
 
         .circle-card {
@@ -663,16 +657,17 @@
                 min-height: 300px;
             }
 
-            .population-panel {
-                flex-shrink: 0;
+            .circles-drawer {
+                width: 100%;
+                max-width: 320px;
             }
 
-            .population-details {
-                gap: 16px;
+            .drawer-toggle {
+                display: none !important;
             }
 
-            .population-detail {
-                min-width: 45%;
+            .summary-bar {
+                cursor: pointer;
             }
         }
     </style>
@@ -727,38 +722,56 @@
             <div class="error-message" id="error"></div>
             <p class="info-text">Enter an address and click "Add Circle" to add a market area. Add multiple circles to compare regions.</p>
         </div>
-        <div class="circles-panel" id="circlesPanel">
-            <div class="circles-panel-header">
-                <h3>Circles <span class="circle-count" id="circleCount">(0)</span></h3>
-                <button class="btn--clear-all" id="clearAllBtn">Clear All</button>
-            </div>
-            <div class="circles-items" id="circlesItems">
-                <!-- Circle cards will be inserted here -->
-            </div>
-        </div>
-        <div class="population-panel" id="populationPanel">
-            <div class="population-header" id="populationHeader">
-                <div class="population-header-left">
-                    <h2>Est. Private Party Listings</h2>
-                    <span class="population-header-value" id="populationHeaderValue">--</span>
+        <!-- Summary Bar -->
+        <div class="summary-bar" id="summaryBar">
+            <div class="summary-stats" id="summaryStats">
+                <div class="summary-stat">
+                    <span class="summary-stat-value" id="summaryCircles">0</span>
+                    <span class="summary-stat-label">circles</span>
                 </div>
-                <div class="population-toggle">
-                    <span>Details</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
+                <div class="summary-stat">
+                    <span class="summary-stat-value" id="summaryListings">~0</span>
+                    <span class="summary-stat-label">listings/mo</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="summary-stat-value" id="summaryPopulation">0</span>
+                    <span class="summary-stat-label">population</span>
                 </div>
             </div>
-            <div class="population-body" id="populationBody">
-                <div id="populationContent">
-                    <div class="population-loading">
-                        <div class="spinner"></div>
-                        <span>Calculating listings...</span>
-                    </div>
-                </div>
+            <div class="summary-toggle" id="summaryToggle">
+                <span>Manage Circles</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
             </div>
         </div>
         <div id="map"></div>
+
+        <!-- Drawer Toggle Button -->
+        <button class="drawer-toggle" id="drawerToggle">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span class="circle-badge" id="drawerBadge">0</span>
+        </button>
+
+        <!-- Circles Drawer -->
+        <div class="circles-drawer" id="circlesDrawer">
+            <div class="drawer-header">
+                <h3>Market Areas <span class="circle-count" id="circleCount">(0)</span></h3>
+                <button class="drawer-close" id="drawerClose">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="drawer-content" id="drawerContent">
+                <!-- Circle cards will be inserted here -->
+            </div>
+            <div class="drawer-footer" id="drawerFooter">
+                <button class="btn--clear-all" id="clearAllBtn">Clear All Circles</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -936,20 +949,42 @@
             elements.color = document.getElementById('color');
             elements.searchBtn = document.getElementById('searchBtn');
             elements.error = document.getElementById('error');
-            elements.populationPanel = document.getElementById('populationPanel');
-            elements.populationHeader = document.getElementById('populationHeader');
-            elements.populationHeaderValue = document.getElementById('populationHeaderValue');
-            elements.populationContent = document.getElementById('populationContent');
             elements.exportBtn = document.getElementById('exportBtn');
-            // Circles panel elements
-            elements.circlesPanel = document.getElementById('circlesPanel');
-            elements.circlesItems = document.getElementById('circlesItems');
+            // Summary bar elements
+            elements.summaryBar = document.getElementById('summaryBar');
+            elements.summaryCircles = document.getElementById('summaryCircles');
+            elements.summaryListings = document.getElementById('summaryListings');
+            elements.summaryPopulation = document.getElementById('summaryPopulation');
+            elements.summaryToggle = document.getElementById('summaryToggle');
+            // Drawer elements
+            elements.circlesDrawer = document.getElementById('circlesDrawer');
+            elements.drawerContent = document.getElementById('drawerContent');
+            elements.drawerToggle = document.getElementById('drawerToggle');
+            elements.drawerBadge = document.getElementById('drawerBadge');
+            elements.drawerClose = document.getElementById('drawerClose');
+            elements.drawerFooter = document.getElementById('drawerFooter');
             elements.circleCount = document.getElementById('circleCount');
             elements.clearAllBtn = document.getElementById('clearAllBtn');
         }
 
-        function togglePopulationPanel() {
-            elements.populationPanel.classList.toggle('collapsed');
+        let drawerOpen = false;
+
+        function toggleDrawer() {
+            drawerOpen = !drawerOpen;
+            elements.circlesDrawer.classList.toggle('open', drawerOpen);
+            elements.drawerToggle.classList.toggle('open', drawerOpen);
+        }
+
+        function openDrawer() {
+            drawerOpen = true;
+            elements.circlesDrawer.classList.add('open');
+            elements.drawerToggle.classList.add('open');
+        }
+
+        function closeDrawer() {
+            drawerOpen = false;
+            elements.circlesDrawer.classList.remove('open');
+            elements.drawerToggle.classList.remove('open');
         }
 
         function initMap() {
@@ -980,7 +1015,10 @@
             elements.unit.addEventListener('change', handleUnitChange);
             elements.color.addEventListener('input', handleColorChange);
             elements.exportBtn.addEventListener('click', exportToPDF);
-            elements.populationHeader.addEventListener('click', togglePopulationPanel);
+            // Drawer event listeners
+            elements.drawerToggle.addEventListener('click', toggleDrawer);
+            elements.drawerClose.addEventListener('click', closeDrawer);
+            elements.summaryBar.addEventListener('click', toggleDrawer);
             elements.clearAllBtn.addEventListener('click', clearAllCircles);
 
             // Autocomplete
@@ -1139,7 +1177,6 @@
             // Hide export button if no circles
             if (circles.length === 0) {
                 elements.exportBtn.classList.remove('show');
-                elements.populationPanel.classList.remove('show');
             }
         }
 
@@ -1151,8 +1188,8 @@
             circles = [];
             activeCircleId = null;
             updateCirclesPanel();
-            elements.populationPanel.classList.remove('show');
             elements.exportBtn.classList.remove('show');
+            closeDrawer();
         }
 
         function selectCircle(id) {
@@ -1216,46 +1253,73 @@
         }
 
         function updateCirclesPanel() {
+            // Update circle count in drawer header
             elements.circleCount.textContent = `(${circles.length})`;
+            elements.drawerBadge.textContent = circles.length;
 
-            // Only show circles panel when there are 2+ circles
-            if (circles.length < 2) {
-                elements.circlesPanel.classList.remove('show');
-                elements.circlesItems.innerHTML = '';
-                return;
+            // Calculate totals for summary bar
+            let totalPopulation = 0;
+            let totalListings = 0;
+            circles.forEach(cd => {
+                if (cd.censusData && !cd.censusData.error) {
+                    totalPopulation += cd.censusData.totalPopulation;
+                    totalListings += Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION);
+                }
+            });
+
+            // Update summary bar
+            elements.summaryCircles.textContent = circles.length;
+            elements.summaryListings.textContent = `~${formatNumber(totalListings)}`;
+            elements.summaryPopulation.textContent = formatNumber(totalPopulation);
+
+            // Show/hide summary bar and drawer toggle based on circles
+            if (circles.length === 0) {
+                elements.summaryBar.classList.remove('show');
+                elements.drawerToggle.classList.remove('show');
+                elements.drawerFooter.style.display = 'none';
+                closeDrawer();
+            } else {
+                elements.summaryBar.classList.add('show');
+                elements.drawerToggle.classList.add('show');
+                elements.drawerFooter.style.display = 'block';
             }
 
-            elements.circlesPanel.classList.add('show');
+            // Render circle cards in drawer
+            elements.drawerContent.innerHTML = circles.length === 0
+                ? '<p style="text-align: center; color: var(--vettx-text-light); padding: 20px;">No circles added yet.<br>Enter an address above to add a market area.</p>'
+                : circles.map(cd => {
+                    const listings = cd.censusData && !cd.censusData.error
+                        ? Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION)
+                        : '--';
+                    const population = cd.censusData && !cd.censusData.error
+                        ? formatNumber(cd.censusData.totalPopulation)
+                        : '--';
+                    const isActive = cd.id === activeCircleId;
 
-            elements.circlesItems.innerHTML = circles.map(cd => {
-                const listings = cd.censusData ? Math.round((cd.censusData.totalPopulation / 1000000) * LISTINGS_PER_MILLION) : '--';
-                const population = cd.censusData ? formatNumber(cd.censusData.totalPopulation) : '--';
-                const isActive = cd.id === activeCircleId;
-
-                return `
-                    <div class="circle-card ${isActive ? 'active' : ''}" data-id="${cd.id}" onclick="selectCircle(${cd.id})">
-                        <div class="circle-card-color" style="background-color: ${cd.color}"></div>
-                        <div class="circle-card-info">
-                            <div class="circle-card-address">${cd.address}</div>
-                            <div class="circle-card-stats">
-                                <span>~${listings} listings/mo</span>
-                                <span>Pop: ${population}</span>
+                    return `
+                        <div class="circle-card ${isActive ? 'active' : ''}" data-id="${cd.id}" onclick="selectCircle(${cd.id})">
+                            <div class="circle-card-color" style="background-color: ${cd.color}"></div>
+                            <div class="circle-card-info">
+                                <div class="circle-card-address">${cd.address}</div>
+                                <div class="circle-card-stats">
+                                    <span>~${listings} listings/mo</span>
+                                    <span>Pop: ${population}</span>
+                                </div>
+                            </div>
+                            <div class="circle-card-controls">
+                                <input type="number" class="circle-card-radius" value="${cd.radius}" min="1" max="500"
+                                    onclick="event.stopPropagation()"
+                                    onchange="updateCircleRadius(${cd.id}, this.value)">
+                                <span style="font-size: 0.75rem; color: var(--vettx-text-light)">mi</span>
+                                <button class="circle-card-delete" onclick="event.stopPropagation(); removeCircle(${cd.id})" title="Remove circle">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
                             </div>
                         </div>
-                        <div class="circle-card-controls">
-                            <input type="number" class="circle-card-radius" value="${cd.radius}" min="1" max="500"
-                                onclick="event.stopPropagation()"
-                                onchange="updateCircleRadius(${cd.id}, this.value)">
-                            <span style="font-size: 0.75rem; color: var(--vettx-text-light)">mi</span>
-                            <button class="circle-card-delete" onclick="event.stopPropagation(); removeCircle(${cd.id})" title="Remove circle">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
         }
 
         function updateCircleCard(id) {
@@ -1498,87 +1562,15 @@
         }
 
         function updatePopulationPanel() {
-            if (circles.length === 0) {
-                elements.populationPanel.classList.remove('show');
-                return;
+            // Now handled by updateCirclesPanel which updates the summary bar
+            updateCirclesPanel();
+
+            // Show/hide export button based on circles
+            if (circles.length > 0) {
+                elements.exportBtn.classList.add('show');
+            } else {
+                elements.exportBtn.classList.remove('show');
             }
-
-            elements.populationPanel.classList.add('show');
-
-            // Find active circle
-            const activeCircle = circles.find(c => c.id === activeCircleId);
-
-            if (!activeCircle || !activeCircle.censusData || activeCircle.censusData.error) {
-                const errorMsg = activeCircle?.censusData?.message || 'Select a circle to see details';
-                elements.populationHeaderValue.textContent = '--';
-                elements.populationContent.innerHTML = `<div class="population-error">${errorMsg}</div>`;
-                return;
-            }
-
-            const cd = activeCircle;
-            const censusData = cd.censusData;
-            const radiusMiles = cd.radius;
-            const circleAreaSqMiles = Math.PI * radiusMiles * radiusMiles;
-            const totalPopulation = censusData.totalPopulation;
-            const countiesInRadius = censusData.countiesInRadius;
-
-            const privatePartyListings = Math.round((totalPopulation / 1000000) * LISTINGS_PER_MILLION);
-            const emoji = getListingsEmoji(privatePartyListings);
-
-            // Update header value for collapsed view
-            elements.populationHeaderValue.textContent = `~${formatNumber(privatePartyListings)}/mo`;
-
-            // Get top 5 counties by population for display
-            const topCounties = [...countiesInRadius]
-                .sort((a, b) => b.p - a.p)
-                .slice(0, 5)
-                .map(c => `${c.n}, ${c.s.substring(0, 2).toUpperCase()}`)
-                .join(' · ');
-
-            // Count states
-            const states = new Set(countiesInRadius.map(c => c.s));
-
-            elements.populationContent.innerHTML = `
-                <h2>Estimated Private Party Listings Per Month</h2>
-                <div class="population-value">
-                    <span class="population-emoji">${emoji}</span>
-                    <span id="listingsCounter">~0 listings/mo</span>
-                </div>
-                <div class="population-details">
-                    <div class="population-detail">
-                        <strong>${formatNumber(totalPopulation)}</strong>
-                        Total Population
-                    </div>
-                    <div class="population-detail">
-                        <strong>${formatNumber(countiesInRadius.length)}</strong>
-                        Counties Included
-                    </div>
-                    <div class="population-detail">
-                        <strong>${states.size}</strong>
-                        State${states.size !== 1 ? 's' : ''}
-                    </div>
-                    <div class="population-detail">
-                        <strong>${formatNumber(Math.round(circleAreaSqMiles))}</strong>
-                        Circle Area (sq mi)
-                    </div>
-                    <div class="population-detail">
-                        <strong>${formatNumber(Math.round(totalPopulation / circleAreaSqMiles))}/sq mi</strong>
-                        Avg Density
-                    </div>
-                    <div class="population-detail">
-                        <strong>${radiusMiles} mi</strong>
-                        Radius
-                    </div>
-                </div>
-                <div class="population-note">* Top counties: ${topCounties}${countiesInRadius.length > 5 ? ` (+${countiesInRadius.length - 5} more)` : ''}</div>
-                <div class="population-note" style="margin-top: 4px;">Location: ${cd.address}</div>
-            `;
-
-            const counterEl = document.getElementById('listingsCounter');
-            animateCounterListings(counterEl, privatePartyListings, ANIMATION_DURATION);
-
-            // Show export button
-            elements.exportBtn.classList.add('show');
         }
 
         // PDF Export functionality - supports multiple circles
