@@ -913,8 +913,12 @@
                     throw new Error('County data not loaded. Please refresh the page.');
                 }
 
-                // Get the radius in miles
-                const radiusMiles = circle ? circle.getRadius() / METERS_PER_MILE : parseFloat(elements.radiusInput.value);
+                // Get the radius in miles - use input value since circle might be animating from 0
+                const unit = elements.unit.value;
+                let radiusMiles = parseFloat(elements.radiusInput.value);
+                if (unit === 'km') {
+                    radiusMiles = radiusMiles * 0.621371; // Convert km to miles
+                }
 
                 // Find all counties within the radius using pre-loaded data
                 const countiesInRadius = findCountiesInRadius(lat, lng, radiusMiles);
